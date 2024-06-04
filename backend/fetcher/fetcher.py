@@ -1,7 +1,11 @@
 import asyncio
+import json
 import os
+from re import Pattern
+import re
 import time
 from bs4 import BeautifulSoup
+from dotenv import load_dotenv
 import requests
 from playwright.async_api import (
     async_playwright,
@@ -9,14 +13,13 @@ from playwright.async_api import (
 )
 
 # from playwright.sync_api import sync_playwright
-
 from backend.extractor.utils import prepare_html, save_html
 from backend.extractor.db import init_db
 from backend.logger import get_logger
 import asyncio
 from playwright.async_api import async_playwright
 
-
+load_dotenv()
 logger = get_logger()
 db = init_db()
 
@@ -52,6 +55,72 @@ async def fetch_html(url):
                 return html
 
 
+async def scroll_page(page, max_duration):
+    await page.evaluate(
+        """
+            var intervalID = setInterval(function () {
+                var scrollingElement = (document.scrollingElement || document.body);
+                scrollingElement.scrollTop = scrollingElement.scrollHeight;
+            }, 200);
+            """
+    )
+    prev_height = None
+    start_time = time.time()
+
+    # Handle potential login popups
+    try:
+        item_close = await page.query_selector('[aria-label="Đóng"]')
+        if item_close is not None:
+            await item_close.click()
+            logger.info("Closed login popups")
+            await page.mouse.wheel(-1000, 0)
+    except Exception as e:
+        print("Error closing popup:", str(e))
+    while True:
+        logger.info("Handling scrolls")
+        curr_height = await page.evaluate("(window.innerHeight + window.scrollY)")
+        elapsed_time = time.time() - start_time
+        if elapsed_time > max_duration:
+            print(f"Reached maximum scroll duration of {max_duration} seconds.")
+            await page.evaluate("clearInterval(intervalID)")
+        if not prev_height:
+            prev_height = curr_height
+            await asyncio.sleep(15)
+        elif prev_height == curr_height:
+            logger.info("No more new content, stopping fetcher")
+            await page.evaluate("clearInterval(intervalID)")
+            break
+        else:
+            prev_height = curr_height
+            await asyncio.sleep(15)
+
+
+async def find_expand_button(page, button_text=None):
+    count = 0
+    failed_count = 0
+    button_text_string = (
+        r"(Expand|See more|Xem thêm||Hiển thị)"
+        if button_text is None
+        else rf"({"|".join(button_text)})"
+    )
+    logger.info("Locating 'See more' buttons")
+    buttons = await page.get_by_role("button").filter(
+    has_text=re.compile(button_text_string, re.IGNORECASE)).all()
+    for button in buttons:
+        try:
+            # Attempt to click on the button
+            await button.click()
+            count += 1
+        except Exception:
+            # Log a message if a timeout error occurs and continue to the next button
+            failed_count +=1
+            logger.warning(f"Timeout while trying to click button. Moving to next button.")
+            continue
+    logger.info(
+        f"Successfully clicked {count} out of {count + failed_count}"
+    )
+
+
 async def fetch_html_request(url):
     html = requests.get(url).content
     return html
@@ -68,95 +137,27 @@ def load_html_from_db(url):
         return html
 
 
-async def fetch_infinite_page(url, max_duration):
+async def fetch_infinite_page(
+    url, max_duration=20, scroll=True, expand_button_text=None
+):
     async with async_playwright() as p:
         browser = await p.chromium.launch()
         context = await browser.new_context()
         page = await context.new_page()
+        # await save_session_storage(page)
 
         try:
             await page.goto(url)
             logger.info("Getting page")
         except Exception as e:
-            print("Please, put right link:", str(e))
+            print(str(e))
             return
 
-        logger.info("Scrolling page")
         # This code makes the WebDriver scroll down
-        await page.evaluate(
-            """
-            var intervalID = setInterval(function () {
-                var scrollingElement = (document.scrollingElement || document.body);
-                scrollingElement.scrollTop = scrollingElement.scrollHeight;
-            }, 200);
-            """
-        )
-
-        prev_height = None
-        start_time = time.time()
-
-        # Handle potential login popups
-        try:
-            item_close = await page.query_selector('[aria-label="Đóng"]')
-            logger.info("Closed login popups")
-            if item_close is not None:
-                await item_close.click()
-                await page.mouse.wheel(-1000, 0)
-        except Exception as e:
-            print("Error closing popup:", str(e))
-        # while True:
-        logger.info("Handling scrolls")
-        curr_height = await page.evaluate("(window.innerHeight + window.scrollY)")
-        elapsed_time = time.time() - start_time
-        # if elapsed_time > max_duration:
-        #     print(f"Reached maximum scroll duration of {max_duration} seconds.")
-        #     await page.evaluate("clearInterval(intervalID)")
-        if not prev_height:
-            prev_height = curr_height
-            await asyncio.sleep(15)
-        elif prev_height == curr_height:
-            logger.info("No more new content, stopping fetcher")
-            await page.evaluate("clearInterval(intervalID)")
-            # break
-        else:
-            prev_height = curr_height
-            await asyncio.sleep(15)
-
-        logger.info("Locating 'See more' buttons")
-        count = 0
-        buttons_clicked = 0
-
-        # Handle buttons within div elements
-        for button in (
-            await page.locator("div")
-            .filter(has_text="Xem thêm")
-            .get_by_role("button")
-            .all()
-        ):
-            count += 1
-            try:
-                await button.click(timeout=1)
-                buttons_clicked += 1
-            except Exception as e:
-                logger.error(f"Error clicking 'See more' button in div: {str(e)}")
-
-        # Handle buttons within span elements
-        for button in (
-            await page.locator("span")
-            .filter(has_text="Xem thêm")
-            .get_by_role("button")
-            .all()
-        ):
-            count += 1
-            try:
-                await button.click()
-                buttons_clicked += 1
-            except Exception as e:
-                logger.error(f"Error clicking 'See more' button in span: {str(e)}")
-
-        logger.info(
-            f"Found {count} 'See more' buttons, successfully clicked {buttons_clicked}"
-        )
+        if scroll:
+            await scroll_page(page, max_duration=max_duration)
+        if expand_button_text:
+            await find_expand_button(page, expand_button_text)
 
         # Return the page content regardless of click success
         selector = await page.content()
@@ -166,10 +167,6 @@ async def fetch_infinite_page(url, max_duration):
         # print(html)
         await browser.close()
         return selector
-
-
-import asyncio
-from playwright.async_api import async_playwright
 
 
 async def test_see_more_buttons(url):
@@ -186,7 +183,6 @@ async def test_see_more_buttons(url):
         except Exception as e:
             print("Please, put right link:", str(e))
             return
-
         # Wait for the page to load content
         await asyncio.sleep(5)
 
@@ -203,7 +199,7 @@ async def test_see_more_buttons(url):
         see_more_buttons = await page.query_selector_all('button:has-text("Xem thêm")')
 
         see_more_buttons = await (
-            page.locator("span").filter(has_text="See more").get_by_role("button").all()
+            page.get_by_role("button").filter(has_text="See more").all()
         )
         # print(f"Found {len(see_more_buttons)} 'See More' buttons")
 

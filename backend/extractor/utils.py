@@ -8,7 +8,7 @@ logger = get_logger()
 
 
 def clean_html(soup, tags=[]):
-    default_tags = ["script", "style", "link", "meta", "nav"]
+    default_tags = ["script", "style", "link", "nav"]
     tags += [*default_tags]
     """Receives a list of elements to remove from the soup."""
     for data in soup(tags):
@@ -16,7 +16,7 @@ def clean_html(soup, tags=[]):
     logger.info(
         "Cleaning HTML, removing all path that does not contains navigable string"
     )
-    return soup.body
+    return soup
 
 
 def traverse_and_modify(current_tag, current_path=None):

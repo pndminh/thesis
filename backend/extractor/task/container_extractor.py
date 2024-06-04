@@ -117,7 +117,7 @@ class ContainerExtractor:
         selector = self.path_to_lca.replace(" ", " > ")
         return self.soup.select(selector)
 
-    def extract_items_in_container(self, container, template_structure) -> dict:
+    async def extract_items_in_container(self, container, template_structure) -> dict:
         """Receives a container and a template structure, returns a dictionary populated with content in the corresponding keys specified by the template structure
         Example structure:
         extracted_item = {"title": "ABC", "description": "xyz"}
