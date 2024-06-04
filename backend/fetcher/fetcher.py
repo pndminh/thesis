@@ -99,7 +99,7 @@ async def find_expand_button(page, button_text=None):
     count = 0
     failed_count = 0
     button_text_string = (
-        r"(Expand|See more|Xem thêm||Hiển thị)"
+        r"(Expand|See more|Xem thêm|Hiển thị)"
         if button_text is None
         else rf"({"|".join(button_text)})"
     )
@@ -138,7 +138,7 @@ def load_html_from_db(url):
 
 
 async def fetch_infinite_page(
-    url, max_duration=20, scroll=True, expand_button_text=None
+    url, max_duration=20, scroll=True, expand=False, expand_button_text=None
 ):
     async with async_playwright() as p:
         browser = await p.chromium.launch()
@@ -156,7 +156,7 @@ async def fetch_infinite_page(
         # This code makes the WebDriver scroll down
         if scroll:
             await scroll_page(page, max_duration=max_duration)
-        if expand_button_text:
+        if expand:
             await find_expand_button(page, expand_button_text)
 
         # Return the page content regardless of click success
