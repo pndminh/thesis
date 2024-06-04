@@ -7,8 +7,7 @@ sys.path.append("./")
 from backend.extractor.task.container_extractor import (
     ContainerExtractor,
 )
-
-# from backend.extractor.extractor import prepare_html
+from backend.extractor.utils import prepare_html
 from backend.fetcher.fetcher import fetch_html
 
 # from extract_structured_data import (
@@ -20,6 +19,7 @@ from backend.fetcher.fetcher import fetch_html
 
 async def get_url(url):
     html = await fetch_html(url)
+    html = prepare_html(html)
     return html
 
 
@@ -49,7 +49,13 @@ with gr.Blocks() as demo:
             add_data_button = gr.Button("Add data to extract list")
             extract_button = gr.Button("Extract")
         with gr.Row():
-            extract_output = gr.JSON(label="Extracted Result", scale=2)
+            with gr.Column():
+                structured_extracted_output = gr.Textbox(
+                    label="Extracted Result", max_lines=20
+                )
+                unstructured_extracted_output = gr.Textbox(
+                    label="Unstructured extracted text", max_lines=20
+                )
 
         def remove_data(label_input, contents_to_extract: dict):
             if label_input in contents_to_extract.keys():
@@ -62,9 +68,11 @@ with gr.Blocks() as demo:
 
         async def extract(html, contents_to_extract):
             # example_container = json.loads(contents_to_extract)
-            extractor = ContainerExtractor(html, contents_to_extract)
-            found_contents = await extractor.container_extract_run_task()
-            return found_contents
+            extractor = await ContainerExtractor(html, contents_to_extract)
+            structured_contents, unstructured_contents = (
+                await extractor.container_extract_run_task()
+            )
+            return structured_contents, unstructured_contents
 
         remove_data_button.click(
             remove_data,
@@ -79,7 +87,7 @@ with gr.Blocks() as demo:
         extract_button.click(
             fn=extract,
             inputs=[html, contents_to_extract],
-            outputs=[extract_output],
+            outputs=[structured_extracted_output, unstructured_extracted_output],
         )
 
         # with label_container:

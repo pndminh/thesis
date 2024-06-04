@@ -1,4 +1,5 @@
 import datetime
+from backend.extractor.db import init_db
 from backend.logger import get_logger
 from bs4 import BeautifulSoup
 
@@ -55,7 +56,10 @@ def traverse_and_modify(current_tag, current_path=None):
     return current_tag
 
 
-def save_html(db, url, soup: BeautifulSoup):
+db = init_db()
+
+
+def save_html(url, soup: BeautifulSoup):
     doc_ref = db.collection("crawl-result").document()
     last_modified = str(datetime.date.today())
     doc_ref.set(
@@ -69,13 +73,14 @@ def save_html(db, url, soup: BeautifulSoup):
 
 
 def parse_html(html):
+    logger.info("Parsing HTML string to BeautifulSoup object")
     soup = BeautifulSoup(html, "html.parser")
     return soup
 
 
 def prepare_html(html):
     "clean and parse html to prepare it for extraction"
-    if type(html) is not BeautifulSoup:
+    if type(html) is str:
         soup = parse_html(html)
     else:
         soup = html

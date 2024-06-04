@@ -6,22 +6,39 @@ from backend.extractor.extractor import (
     find_string_tag,
     lowest_common_ancestor,
 )
-from backend.extractor.utils import prepare_html
+from backend.extractor.utils import parse_html, prepare_html
 from backend.logger import get_logger
 
 logger = get_logger()
 
 
+async def is_dict_empty(d):
+    return all(
+        not value or (isinstance(value, list) and all(not item for item in value))
+        for value in d.values()
+    )
+
+
+# Asynchronous function to filter non-empty dictionaries
+async def filter_non_empty_dicts(data):
+    tasks = [(d, is_dict_empty(d)) for d in data]
+    results = await asyncio.gather(*[task[1] for task in tasks])
+    non_empty_dicts = [
+        task[0] for task, is_empty in zip(tasks, results) if not is_empty
+    ]
+    return non_empty_dicts
+
+
 class ContainerExtractor:
     def __init__(self, html, example_container):
-        self.soup = prepare_html(html)
+        self.soup = parse_html(html)
         self.input_container = example_container
         self.process_container = {}
         for key, value in example_container.items():
             self.process_container[key] = {"content": value}
 
-    async def container_extract_run_task(self) -> list[dict]:
-        # example_dict: {"title": "ABC", "price": 123, "details": "xyz"}
+    async def prepare_extract(self):
+        logger.info("Preparing extract")
         self.find_container_from_examples()
         # parallel
         set_up_container_task = asyncio.create_task(
@@ -33,21 +50,21 @@ class ContainerExtractor:
         template_structure, similar_containers = await asyncio.gather(
             set_up_container_task, get_similar_containers_task
         )
-        # parallel
-        found_contents = []
-        tasks = []
-        for container in similar_containers:
-            tasks.append(
-                asyncio.create_task(
-                    self.extract_items_in_containers(
-                        container=container, template_structure=template_structure
-                    )
-                )
-            )
-        found_contents = await asyncio.gather(*tasks)
-        cleaned_found_contents = await filter_non_empty_dicts(found_contents)
+        self.template_structure = template_structure
+        self.similar_containers = similar_containers
+        return template_structure, similar_containers
 
-        return cleaned_found_contents
+    async def container_extract_run_task(self):
+        await self.prepare_extract()
+        structured_text_containers = (
+            await self.extract_structured_text_from_containers()
+        )
+        [print(container) for container in structured_text_containers]
+        unstructured_text_containers = (
+            await self.extract_unstructured_text_from_containers()
+        )
+        [print(container) for container in unstructured_text_containers]
+        return structured_text_containers, unstructured_text_containers
 
     def find_container_from_examples(self):
         example_tags = []
@@ -94,9 +111,10 @@ class ContainerExtractor:
     async def find_similar_containers(self):
         "Uses the path of an example container, to find other similar containers"
         logger.info("Getting list of similar containers")
-        return self.soup.select(self.path_to_lca)
+        selector = self.path_to_lca.replace(" ", " > ")
+        return self.soup.select(selector)
 
-    async def extract_items_in_containers(self, container, template_structure) -> dict:
+    async def extract_items_in_container(self, container, template_structure) -> dict:
         """Receives a container and a template structure, returns a dictionary populated with content in the corresponding keys specified by the template structure
         Example structure:
         extracted_item = {"title": "ABC", "description": "xyz"}
@@ -104,7 +122,8 @@ class ContainerExtractor:
         res_dict = {}
         for key, value in template_structure.items():
             string_values = []
-            content_tags = container.select(value)
+            selector = value.replace(" ", " > ")
+            content_tags = container.select(selector)
             string_values += (
                 [content_tag.get_text().strip() for content_tag in content_tags]
                 if content_tags is not None
@@ -112,13 +131,29 @@ class ContainerExtractor:
             )
             res_dict[key] = string_values
         return res_dict
-    
-async def is_dict_empty(d):
-return all(not value for value in d.values())
 
-# Asynchronous function to filter non-empty dictionaries
-async def filter_non_empty_dicts(data):
-    tasks = [(d, is_dict_empty(d)) for d in data]
-    results = await asyncio.gather(*[task[1] for task in tasks])
-    non_empty_dicts = [task[0] for task, is_empty in zip(tasks, results) if not is_empty]
-    return non_empty_dicts
+    async def extract_structured_text_from_containers(self):
+        logger.info("Extracting text in container from element path")
+        found_extracted_contents = []
+        tasks = []
+        for container in self.similar_containers:
+            tasks.append(
+                asyncio.create_task(
+                    self.extract_items_in_container(
+                        container=container, template_structure=self.template_structure
+                    )
+                )
+            )
+        found_extracted_contents = await asyncio.gather(*tasks)
+        structured_texts = await filter_non_empty_dicts(found_extracted_contents)
+        return structured_texts
+
+    async def extract_unstructured_text_from_containers(self) -> list:
+        logger.info("Extracting text directly from container")
+        unextracted_contents = []
+        for container in self.similar_containers:
+            contents = container.find_all(string=True, recursive=True)
+            filtered = [string for string in contents if string.strip()]
+            unextracted_contents.append("".join(filtered))
+
+        return unextracted_contents
