@@ -7,7 +7,7 @@ from playwright.async_api import (
 )
 import sys
 
-from backend.extractor.utils import save_html
+from backend.extractor.utils import prepare_html, save_html
 
 sys.path.append("./")
 from backend.extractor.db import init_db
@@ -43,7 +43,7 @@ async def fetch_html(url):
             finally:
                 # Capture the HTML content that is available at this point
                 html = await page.content()
-                save_html(url=url, soup=html)
+                await save_html(url=url, soup=prepare_html(html))
                 await browser.close()
                 return html
 

@@ -31,7 +31,7 @@ async def filter_non_empty_dicts(data):
 
 class ContainerExtractor:
     def __init__(self, html, example_container):
-        self.soup = parse_html(html)
+        self.soup = prepare_html(html)
         self.input_container = example_container
         self.process_container = {}
         for key, value in example_container.items():
@@ -84,7 +84,10 @@ class ContainerExtractor:
         if lca is None:
             logger.info("Cannot find container from provided examples")
             raise Exception
+
         path_to_container = find_path(soup=self.soup, content=lca)
+        if path_to_container is None:
+            logger.info("Cannot find path to container")
         logger.info(
             f"""Found container tag: {lca.name}
                 Found path to container: {' -> '.join(path for path in path_to_container.split(' '))}"""
@@ -114,7 +117,7 @@ class ContainerExtractor:
         selector = self.path_to_lca.replace(" ", " > ")
         return self.soup.select(selector)
 
-    async def extract_items_in_container(self, container, template_structure) -> dict:
+    def extract_items_in_container(self, container, template_structure) -> dict:
         """Receives a container and a template structure, returns a dictionary populated with content in the corresponding keys specified by the template structure
         Example structure:
         extracted_item = {"title": "ABC", "description": "xyz"}
@@ -122,7 +125,8 @@ class ContainerExtractor:
         res_dict = {}
         for key, value in template_structure.items():
             string_values = []
-            selector = value.replace(" ", " > ")
+            # selector = value.replace(" ", " > ")
+            selector = value
             content_tags = container.select(selector)
             string_values += (
                 [content_tag.get_text().strip() for content_tag in content_tags]
@@ -154,6 +158,6 @@ class ContainerExtractor:
         for container in self.similar_containers:
             contents = container.find_all(string=True, recursive=True)
             filtered = [string for string in contents if string.strip()]
-            unextracted_contents.append("".join(filtered))
+            unextracted_contents.append(" ".join(filtered))
 
         return unextracted_contents

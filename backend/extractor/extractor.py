@@ -10,6 +10,8 @@ logger = get_logger()
 def find_string_tag(soup, navigable_string_content: str):
     "find the tag that contains the given navigable sttring in the soup"
     string = soup.find(string=re.compile(f"{navigable_string_content}"))
+    if string is None:
+        raise Exception("Cannot find tag")
     res = string.parent
     logger.info(f"Found string in soup at: {res}")
     return res if string is not None else None
@@ -43,7 +45,11 @@ def find_path(
     Returns:
         str: string of tag names indicating path from the parent tag to the content string
     """
-    target_tag = find_string_tag(soup, content) if type(content) is str else content
+    try:
+        target_tag = find_string_tag(soup, content) if type(content) is str else content
+    except Exception:
+        logger.error(f"Cannot find string {content} in soup")
+        return None
     if target_tag == None:
         return None
     path = []
@@ -62,3 +68,9 @@ def find_path(
     # logger.info(f"Extract path name: {path_string}")
 
     return path_string
+
+
+# def extract_text_from_container(container=None):
+#     contents = container.find_all(string=True, recursive=True)
+#     filtered = [string for string in contents if string.strip()]
+#     unextracted_contents.append(" ".join(filtered))

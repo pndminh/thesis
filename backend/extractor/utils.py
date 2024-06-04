@@ -7,7 +7,9 @@ from bs4 import BeautifulSoup
 logger = get_logger()
 
 
-def clean_html(soup, tags=["script", "style", "link", "meta", "nav"]):
+def clean_html(soup, tags=[]):
+    default_tags = ["script", "style", "link", "meta", "nav"]
+    tags += [*default_tags]
     """Receives a list of elements to remove from the soup."""
     for data in soup(tags):
         data.decompose()
@@ -59,7 +61,7 @@ def traverse_and_modify(current_tag, current_path=None):
 db = init_db()
 
 
-def save_html(url, soup: BeautifulSoup):
+async def save_html(url, soup: BeautifulSoup):
     doc_ref = db.collection("crawl-result").document()
     last_modified = str(datetime.date.today())
     doc_ref.set(
@@ -69,6 +71,7 @@ def save_html(url, soup: BeautifulSoup):
             "last_modified": last_modified,
         }
     )
+
     logger.info("Saved soup to firebase")
 
 
@@ -78,12 +81,12 @@ def parse_html(html):
     return soup
 
 
-def prepare_html(html):
+def prepare_html(html, clean_tags=[]):
     "clean and parse html to prepare it for extraction"
     if type(html) is str:
         soup = parse_html(html)
     else:
         soup = html
-    soup = clean_html(soup)
+    soup = clean_html(soup, clean_tags)
     soup = traverse_and_modify(soup)
     return soup
