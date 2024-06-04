@@ -1,0 +1,13 @@
+openai
+requests
+beautifulsoup4
+firebase-admin
+pandas
+htmldate
+google-generativeai
+python-dotenv
+vertexai
+fastapi
+uvicorn
+playwright
+gradio
