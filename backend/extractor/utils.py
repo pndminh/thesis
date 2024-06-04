@@ -16,7 +16,7 @@ def clean_html(soup, tags=["script", "style", "link", "meta", "nav"]):
     return soup.body
 
 
-def traverse_and_modify(self, current_tag, current_path=None):
+def traverse_and_modify(current_tag, current_path=None):
     """Traverse an html soup, starting form the first tag of the soup to the leaf node (navigable string).
     Remove all paths that does not leads to a navigable strin. Return a modified version of the beautiful soup tree.
     """
@@ -47,7 +47,7 @@ def traverse_and_modify(self, current_tag, current_path=None):
         else:
             children_to_traverse.append(child_tag)
     for child_tag in children_to_traverse:
-        self.traverse_and_modify(
+        traverse_and_modify(
             current_tag=child_tag,
             current_path=current_path + [child_tag.name],
         )
