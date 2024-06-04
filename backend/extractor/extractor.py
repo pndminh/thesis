@@ -7,20 +7,7 @@ from backend.logger import get_logger
 logger = get_logger()
 
 
-def parse_html(html):
-    soup = BeautifulSoup(html, "html.parser")
-    return soup
-
-
-def prepare_html(html):
-    "clean html of"
-    soup = parse_html(html)
-    soup = clean_html(soup)
-    soup = traverse_and_modify(soup)
-    return soup
-
-
-def find_string_tag(navigable_string_content: str, soup=None):
+def find_string_tag(soup, navigable_string_content: str):
     "find the tag that contains the given navigable sttring in the soup"
     string = soup.find(string=re.compile(f"""{navigable_string_content}"""))
     res = string.parent
@@ -28,20 +15,27 @@ def find_string_tag(navigable_string_content: str, soup=None):
     return res if string is not None else None
 
 
-def lowest_common_ancestor(parents=None, *args):
+def lowest_common_ancestor(
+    NUM_NODES,
+    parents=None,
+    *args,
+):
     "receive a list of tags and output the lowest common parent ancestor tag"
     if parents is None:
         parents = collections.defaultdict(int)
     for tag in args:
         parents[tag] += 1
-        if parents[tag] == 2:
+        if parents[tag] == NUM_NODES:
             return tag
     next_arg_list = [tag.parent for tag in args if tag.parent is not None]
 
-    return lowest_common_ancestor(parents, *next_arg_list)
+    return lowest_common_ancestor(NUM_NODES, parents, *next_arg_list)
 
 
-def find_path(content, soup=None) -> str:
+def find_path(
+    content,
+    soup: BeautifulSoup,
+) -> str:
     """return the path from the parent tag (soup) to the content string
     Args:
         content_string (str): the string to find
@@ -49,7 +43,8 @@ def find_path(content, soup=None) -> str:
     Returns:
         str: string of tag names indicating path from the parent tag to the content string
     """
-    target_tag = find_string_tag(content) if type(content) is str else content
+    target_tag = find_string_tag(soup, content) if type(content) is str else content
+    print(target_tag)
     if target_tag == None:
         return None
     path = []
@@ -60,6 +55,7 @@ def find_path(content, soup=None) -> str:
         # print(current.name)
         current = parent
         parent = current.parent
+        print(current.name)
         path += [current]
 
     path = path[::-1]

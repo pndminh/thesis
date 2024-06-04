@@ -55,14 +55,30 @@ def traverse_and_modify(current_tag, current_path=None):
     return current_tag
 
 
-def save_html(self, soup: BeautifulSoup):
-    doc_ref = self.db.collection("crawl-result").document()
+def save_html(db, url, soup: BeautifulSoup):
+    doc_ref = db.collection("crawl-result").document()
     last_modified = str(datetime.date.today())
     doc_ref.set(
         {
-            "url": self.url,
+            "url": url,
             "soup": str(soup),
             "last_modified": last_modified,
         }
     )
     logger.info("Saved soup to firebase")
+
+
+def parse_html(html):
+    soup = BeautifulSoup(html, "html.parser")
+    return soup
+
+
+def prepare_html(html):
+    "clean and parse html to prepare it for extraction"
+    if type(html) is not BeautifulSoup:
+        soup = parse_html(html)
+    else:
+        soup = html
+    soup = clean_html(soup)
+    soup = traverse_and_modify(soup)
+    return soup

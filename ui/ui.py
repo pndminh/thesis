@@ -1,21 +1,26 @@
+import json
 from bs4 import BeautifulSoup
 import gradio as gr
 import sys
 
 sys.path.append("./")
-from backend.extractor.extractor import prepare_html
-from backend.fetcher.fetcher import fetch_html
-from extract_structured_data import (
-    add_input_fields,
-    collect_inputs,
-    extract_structured_data_task_interface,
+from backend.extractor.task.container_extractor import (
+    ContainerExtractor,
 )
+
+# from backend.extractor.extractor import prepare_html
+from backend.fetcher.fetcher import fetch_html
+
+# from extract_structured_data import (
+#     add_input_fields,
+#     collect_inputs,
+#     extract_structured_data_task_interface,
+# )
 
 
 async def get_url(url):
     html = await fetch_html(url)
-    soup = prepare_html(html)
-    return soup
+    return html
 
 
 def to_json(label, content):
@@ -39,13 +44,12 @@ with gr.Blocks() as demo:
                 content_container = gr.Textbox(label="Content Example", scale=1)
             with gr.Column():
                 output_field = gr.JSON(label="Output", scale=2)
-
-        with gr.Row():
-            extract_output = gr.Textbox(label="Extract Result", scale=2)
         with gr.Row():
             remove_data_button = gr.Button("Remove data from extract list")
             add_data_button = gr.Button("Add data to extract list")
             extract_button = gr.Button("Extract")
+        with gr.Row():
+            extract_output = gr.JSON(label="Extracted Result", scale=2)
 
         def remove_data(label_input, contents_to_extract: dict):
             if label_input in contents_to_extract.keys():
@@ -56,8 +60,11 @@ with gr.Blocks() as demo:
             contents_to_extract[label_input] = content_input
             return contents_to_extract
 
-        def extract(html, contents_to_extract: dict):
-            return contents_to_extract
+        async def extract(html, contents_to_extract):
+            # example_container = json.loads(contents_to_extract)
+            extractor = ContainerExtractor(html, contents_to_extract)
+            found_contents = await extractor.container_extract_run_task()
+            return found_contents
 
         remove_data_button.click(
             remove_data,
