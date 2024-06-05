@@ -65,7 +65,7 @@ def find_path(
 
     path = path[::-1]
     path_string = " ".join(tag.name for tag in path)
-    # logger.info(f"Extract path name: {path_string}")
+    logger.info(f"Extract path name: {path_string}")
 
     return path_string
 

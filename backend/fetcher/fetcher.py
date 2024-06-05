@@ -94,31 +94,27 @@ async def scroll_page(page, max_duration):
             prev_height = curr_height
             await asyncio.sleep(15)
 
-
+async def click_button(button):
+    try:
+        # Attempt to click on the button
+        await button.click()
+        return True
+    except Exception as e:
+        # Log a message if an error occurs and continue to the next button
+        logger.warning("Timeout occurred")
+        return False
 async def find_expand_button(page, button_text=None):
-    count = 0
-    failed_count = 0
     button_text_string = (
         r"(Expand|See more|Xem thêm|Hiển thị)"
         if button_text is None
         else rf"({"|".join(button_text)})"
     )
     logger.info("Locating 'See more' buttons")
-    buttons = await page.get_by_role("button").filter(
-    has_text=re.compile(button_text_string, re.IGNORECASE)).all()
-    for button in buttons:
-        try:
-            # Attempt to click on the button
-            await button.click()
-            count += 1
-        except Exception:
-            # Log a message if a timeout error occurs and continue to the next button
-            failed_count +=1
-            logger.warning(f"Timeout while trying to click button. Moving to next button.")
-            continue
-    logger.info(
-        f"Successfully clicked {count} out of {count + failed_count}"
-    )
+    buttons = await page.get_by_role("button").filter(has_text=re.compile(button_text_string, re.IGNORECASE)).all()
+    results = await asyncio.gather(*(click_button(button) for button in buttons))
+    count = sum(1 for result in results if result)
+    logger.info(f"Clicked {count} 'See more' buttons out of {len(buttons)}")
+    
 
 
 async def fetch_html_request(url):
