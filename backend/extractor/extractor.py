@@ -52,6 +52,8 @@ def find_path(
         return None
     if target_tag == None:
         return None
+    if target_tag == soup:
+        return target_tag.name
     path = []
     current = target_tag
     parent = current.parent
@@ -60,7 +62,6 @@ def find_path(
         # print(current.name)
         current = parent
         parent = current.parent
-        # print(current.name)
         path += [current]
 
     path = path[::-1]

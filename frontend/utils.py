@@ -1,45 +1,42 @@
 import json
-
-import pandas as pd
 import sys
 
 sys.path.append("./")
-from backend.extractor.task.container_extractor import ContainerExtractor
-from backend.fetcher.fetcher import fetch_infinite_page
+from backend.extractor.task.extractor_task import ExtractorTask
+from backend.fetcher.fetcher import fetch_page
 
 
-async def get_url(url, fetch_option_checkbox, scroll_timeout, expand_text):
-    if "Infinite Scroll" in fetch_option_checkbox:
+async def get_url(
+    url: str,
+    fetch_options_radio: str,
+    fetch_options_checkbox=None,
+    scroll_timeout=None,
+    expand_text=None,
+):
+    if fetch_options_radio == "Static":
+        return await fetch_page(url=url, static_fetch=True)
+    if "Infinite Scroll" in fetch_options_checkbox:
         scroll = True
         max_duration = scroll_timeout
     else:
         scroll = False
         max_duration = 0
 
-    if "Element expand" in fetch_option_checkbox:
+    if "Element expand" in fetch_options_checkbox:
         expand = True
         expand_button_text = expand_text.split(", ")
     else:
         expand = False
         expand_button_text = None
-    html = await fetch_infinite_page(
+    html = await fetch_page(
         url=url,
+        static_fetch=False,
         max_duration=max_duration,
         scroll=scroll,
         expand=expand,
         expand_button_text=expand_button_text,
     )
     return html
-
-
-def process_dataframe(df: pd.DataFrame):
-    # TODO
-    dictionary = {}
-    for col in df.columns:
-        if col != "":
-            dictionary[col] = df[col].values.tolist()
-
-    return dictionary
 
 
 def remove_data(label_input, contents_to_extract: dict):
@@ -53,13 +50,15 @@ def add_data(label_input, content_input, contents_to_extract: dict):
     return contents_to_extract
 
 
-async def extract(html, dataframe):
-    contents_to_extract = process_dataframe(dataframe)
+async def extract(html, contents_to_extract):
     # example_container = json.loads(contents_to_extract)
-    extractor = ContainerExtractor(html, contents_to_extract)
-    structured_contents, unstructured_contents = (
-        await extractor.container_extract_run_task()
-    )
+    extractor = ExtractorTask(html, contents_to_extract)
+    structured_contents, unstructured_contents = await extractor.run_extractor_task()
 
     # return structured_contents, unstructured_contents
-    return json.dumps(obj=structured_contents, indent=4), unstructured_contents
+    json_data = json.dumps(obj=structured_contents, indent=4, ensure_ascii=False)
+    print(json_data)
+    return (
+        json_data,
+        unstructured_contents,
+    )

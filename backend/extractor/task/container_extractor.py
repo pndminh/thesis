@@ -59,11 +59,11 @@ class ContainerExtractor:
         structured_text_containers = (
             await self.extract_structured_text_from_containers()
         )
-        [print(container) for container in structured_text_containers]
+        # [print(container) for container in structured_text_containers]
         unstructured_text_containers = (
             await self.extract_unstructured_text_from_containers()
         )
-        [print(container) for container in unstructured_text_containers]
+        # [print(container) for container in unstructured_text_containers]
         return structured_text_containers, unstructured_text_containers
 
     def find_container_from_examples(self):
