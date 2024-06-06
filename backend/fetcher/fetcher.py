@@ -23,37 +23,28 @@ load_dotenv()
 logger = get_logger()
 db = init_db()
 
-
-async def fetch_html(url):
-    html = load_html_from_db(url)
-    if html is not None:
-        return html
-    else:
-        async with async_playwright() as p:
-            logger.info("Downloading html via headless browser")
-            browser = await p.chromium.launch(headless=True)
-            page = await browser.new_page()
-            try:
-                timeout = 30000
-                await asyncio.wait_for(
-                    page.goto(url, wait_until="networkidle"),
-                    timeout=timeout / 1000,  # Convert milliseconds to seconds
-                )
-            except asyncio.TimeoutError:
-                # If the custom timeout occurs, catch the error and proceed to capture HTML
-                print(
-                    f"Timeout occurred after {timeout / 1000} seconds. Capturing the available content."
-                )
-            except PlaywrightTimeoutError as e:
-                # Handle Playwright-specific timeout error if needed
-                print(f"Playwright timeout error: {str(e)}")
-            finally:
-                # Capture the HTML content that is available at this point
-                html = await page.content()
-                await save_html(url=url, soup=prepare_html(html))
-                await browser.close()
-                return html
-
+async def get_page_content(page, url, browser):
+    try:
+        timeout = 30000
+        await asyncio.wait_for(
+            page.goto(url, wait_until="networkidle"),
+            timeout=timeout / 1000,  # Convert milliseconds to seconds
+        )
+    except asyncio.TimeoutError:
+        # If the custom timeout occurs, catch the error and proceed to capture HTML
+        print(
+            f"Timeout occurred after {timeout / 1000} seconds. Capturing the available content."
+        )
+    except PlaywrightTimeoutError as e:
+        # Handle Playwright-specific timeout error if needed
+        print(f"Playwright timeout error: {str(e)}")
+    finally:
+        # Capture the HTML content that is available at this point
+        # html = await page.content()
+        # await save_html(url=url, soup=prepare_html(html))
+        # await browser.close()
+        # return html
+        return page
 
 async def scroll_page(page, max_duration):
     await page.evaluate(
@@ -103,6 +94,7 @@ async def click_button(button):
         # Log a message if an error occurs and continue to the next button
         logger.warning("Timeout occurred")
         return False
+    
 async def find_expand_button(page, button_text=None):
     button_text_string = (
         r"(Expand|See more|Xem thêm|Hiển thị)"
@@ -114,13 +106,10 @@ async def find_expand_button(page, button_text=None):
     results = await asyncio.gather(*(click_button(button) for button in buttons))
     count = sum(1 for result in results if result)
     logger.info(f"Clicked {count} 'See more' buttons out of {len(buttons)}")
-    
 
-
-async def fetch_html_request(url):
+async def fetch_static_page(url):
     html = requests.get(url).content
-    return html
-
+    return html.decode("utf-8")
 
 def load_html_from_db(url):
     "Return a html of website from databse in parsed beautiful soup format"
@@ -132,82 +121,35 @@ def load_html_from_db(url):
         logger.info("Getting HTML from firebase")
         return html
 
-
-async def fetch_infinite_page(
-    url, max_duration=20, scroll=True, expand=False, expand_button_text=None
-):
+async def fetch_dynamic_page(url, max_duration=20, scroll=True, expand=False, expand_button_text=None):
     async with async_playwright() as p:
-        browser = await p.chromium.launch()
+        browser = await p.chromium.launch(headless=True)
         context = await browser.new_context()
         page = await context.new_page()
         # await save_session_storage(page)
-
-        try:
-            await page.goto(url)
-            logger.info("Getting page")
-        except Exception as e:
-            print(str(e))
-            return
-
-        # This code makes the WebDriver scroll down
-        if scroll:
+        if not scroll:
+            page = await get_page_content(page=page, url=url, browser=browser)
+        else: 
+            try:
+                await page.goto(url)
+                logger.info("Getting page")
+            except Exception as e:
+                print(str(e))
+                return
             await scroll_page(page, max_duration=max_duration)
         if expand:
             await find_expand_button(page, expand_button_text)
 
-        # Return the page content regardless of click success
-        selector = await page.content()
-        # selector = await page.query_selector("div.rq0escxv.l9j0dhe7.du4w35lb")
-        # Save HTML code in a variable to parse it with BeautifulSoup
-        # html = await selector.inner_html()
-        # print(html)
+        html = await page.content()
         await browser.close()
-        return selector
+    return html
 
-
-async def test_see_more_buttons(url):
-    async with async_playwright() as p:
-        browser = await p.chromium.launch(
-            headless=False
-        )  # Set headless to False to see the browser actions
-        context = await browser.new_context()
-        page = await context.new_page()
-
-        try:
-            await page.goto(url)
-            print("Page loaded successfully")
-        except Exception as e:
-            print("Please, put right link:", str(e))
-            return
-        # Wait for the page to load content
-        await asyncio.sleep(5)
-
-        try:
-            item_close = await page.query_selector('[aria-label="Đóng"]')
-            logger.info("Closed login popups")
-            if item_close is not None:
-                await item_close.click()
-                await page.mouse.wheel(-1000, 0)
-        except Exception as e:
-            print("Error closing popup:", str(e))
-
-        # Find and count all "See More" buttons
-        see_more_buttons = await page.query_selector_all('button:has-text("Xem thêm")')
-
-        see_more_buttons = await (
-            page.get_by_role("button").filter(has_text="See more").all()
-        )
-        # print(f"Found {len(see_more_buttons)} 'See More' buttons")
-
-        # Optionally, print the buttons' texts to verify they are the correct ones
-        # for button in see_more_buttons:
-        #     text = await button.inner_text()
-        #     print(f"Button text: {text}")
-        for li in await page.get_by_role("listitem").all():
-            await li.click()
-
-        await browser.close()
-        return see_more_buttons
-
-
-# URL of the Facebook page to test
+async def fetch_page(
+    url, static_fetch = False, max_duration=20, scroll=True, expand=False, expand_button_text=None
+):
+    if static_fetch:
+        html = await fetch_static_page(url)
+        return html
+    else:
+        html = await fetch_dynamic_page(url, max_duration, scroll, expand, expand_button_text)
+        return html

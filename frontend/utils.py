@@ -2,7 +2,7 @@ import json
 import sys
 
 sys.path.append("./")
-from backend.extractor.task.extractor_task import ExtractorTask
+from backend.extractor.task.container_extractor import ContainerExtractor
 from backend.fetcher.fetcher import fetch_page
 
 
@@ -52,7 +52,7 @@ def add_data(label_input, content_input, contents_to_extract: dict):
 
 async def extract(html, contents_to_extract):
     # example_container = json.loads(contents_to_extract)
-    extractor = ExtractorTask(html, contents_to_extract)
+    extractor = ContainerExtractor(html, contents_to_extract)
     structured_contents, unstructured_contents = await extractor.run_extractor_task()
 
     # return structured_contents, unstructured_contents
