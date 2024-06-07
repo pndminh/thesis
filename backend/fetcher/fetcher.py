@@ -153,3 +153,8 @@ async def fetch_page(
     else:
         html = await fetch_dynamic_page(url, max_duration, scroll, expand, expand_button_text)
         return html
+
+async def fetch_multiple_pages(urls, static_fetch = False, max_duration=20, scroll=True, expand=False, expand_button_text=None):
+    html_list = await asyncio.gather(*[fetch_page(url, static_fetch, max_duration, scroll, expand, expand_button_text) for url in urls])
+    return html_list
+    
