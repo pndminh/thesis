@@ -6,7 +6,8 @@ from backend.extractor.extractor import (
     find_string_tag,
     lowest_common_ancestor,
 )
-from backend.extractor.utils import parse_html, prepare_html
+from backend.extractor.task.extract_task import ExtractTask
+from backend.extractor.utils import is_duplicate, parse_html, prepare_html
 from backend.logger import get_logger
 
 logger = get_logger()
@@ -29,13 +30,47 @@ async def filter_non_empty_dicts(data):
     return non_empty_dicts
 
 
-class ContainerExtractor:
-    def __init__(self, html, example_container):
-        self.soup = prepare_html(html)
-        self.input_container = example_container
-        self.process_container = {}
-        for key, value in example_container.items():
-            self.process_container[key] = {"content": value}
+class ContainerExtractor(ExtractTask):
+    def __init__(self, example_input: dict, html: str, html_list=[]):
+        super().__init__(example_input, html, html_list)
+
+    async def prepare_single_website_extract_template(self):
+        for label in self.example_template.values():
+            results = await asyncio.gather(
+                *[self.prepare_extract_item(extract_item) for extract_item in label]
+            )
+            for extract_item, result in zip(label, results):
+                if not result:
+                    label.remove(extract_item)
+            print("print template message ", self.example_template)
+
+    async def prepare_extract_item(self, extract_item):
+        try:
+            logger.info("Get item tags")
+            extract_item.tag = find_string_tag(
+                soup=self.soup, navigable_string_content=extract_item.content
+            )
+        except:
+            logger.warning(f"Cannot find {extract_item.content}")
+            return False
+        extract_item.search_path = ""
+        extract_item.base_path = ""
+        extract_item.attributes = extract_item.tag.attrs
+        if extract_item.extract_method == "by_class":
+            if "class" in extract_item.attributes:
+                extract_item.search_path += "." + ".".join(
+                    extract_item.attributes["class"]
+                )
+            else:
+                logger.info("Tag does not contains class attribute")
+        if extract_item.extract_method == "by_id":
+            if "id" in extract_item.attributes:
+                extract_item.search_path = "#" + extract_item.attributes["id"]
+            else:
+                logger.info("Tag does not contain id attribute")
+
+        print("debug search path", extract_item.search_path)
+        return True
 
     async def prepare_extract(self):
         logger.info("Preparing extract")
@@ -50,11 +85,11 @@ class ContainerExtractor:
         template_structure, similar_containers = await asyncio.gather(
             set_up_container_task, get_similar_containers_task
         )
-        self.template_structure = template_structure
         self.similar_containers = similar_containers
         return template_structure, similar_containers
 
     async def container_extract_run_task(self):
+        await self.prepare_single_website_extract_template()
         await self.prepare_extract()
         structured_text_containers = (
             await self.extract_structured_text_from_containers()
@@ -68,13 +103,11 @@ class ContainerExtractor:
 
     def find_container_from_examples(self):
         example_tags = []
-        for key in self.process_container:
-            text_example = self.process_container[key]["content"]
-            example_tag = find_string_tag(self.soup, text_example)
-            example_tags.append(example_tag)
-
-            # save found tags for later usage
-            self.process_container[key]["content_tag"] = example_tag
+        text_example = []
+        example_tags
+        for label in self.example_template.values():
+            [text_example.append(extract_item.content) for extract_item in label]
+            [example_tags.append(extract_item.tag) for extract_item in label]
 
         lca = lowest_common_ancestor(
             len(example_tags),
@@ -104,37 +137,57 @@ class ContainerExtractor:
         Example structure:
         template_structure = {"title": "a h3", "description": "a p"}
         """
-        logger.info("Setting up template structure for container extraction")
+        logger.info("Setting up container structure for container extraction")
         template_structure = {}
-        for key, value in self.process_container.items():
-            path = find_path(value["content_tag"], soup=self.lca)
-            template_structure[key] = path
-        return template_structure
+        for key, label in self.example_template.items():
+            paths = []
+            for extract_item in label:
+                print("debug2", extract_item.search_path)
+                path = find_path(extract_item.tag, soup=self.lca)
+                extract_item.base_path = path.replace(" ", " > ")
+                print("debug1", extract_item.base_path)
 
-    async def find_similar_containers(self):
+                extract_item.search_path = (
+                    extract_item.base_path + extract_item.search_path
+                )
+                print("debug3", extract_item.search_path)
+                if not is_duplicate(extract_item.search_path, paths):
+                    logger.info("Adding search path to find list")
+                    paths.append(extract_item.search_path)
+            template_structure[key] = paths
+        self.template_structure = template_structure
+
+    async def find_similar_containers(self, soup=None):
         "Uses the path of an example container, to find other similar containers"
         logger.info("Getting list of similar containers")
+        if soup is None:
+            soup = self.soup
         selector = self.path_to_lca.replace(" ", " > ")
-        return self.soup.select(selector)
+        return soup.select(selector)
 
-    async def extract_items_in_container(self, container, template_structure) -> dict:
+    async def extract_items_in_container(self, container) -> dict:
         """Receives a container and a template structure, returns a dictionary populated with content in the corresponding keys specified by the template structure
         Example structure:
         extracted_item = {"title": "ABC", "description": "xyz"}
         """
-        res_dict = {}
-        for key, value in template_structure.items():
-            string_values = []
-            # selector = value.replace(" ", " > ")
-            selector = value
-            content_tags = container.select(selector)
-            string_values += (
+        tasks = []
+        for paths in self.template_structure.values():
+            tasks.append(self.extract_similar_text_from_example(container, paths))
+        results = await asyncio.gather(*tasks)
+        return dict(zip(self.template_structure.keys(), results))
+
+    async def extract_similar_text_from_example(self, container, template_paths):
+        res = ""
+        for path in template_paths:
+            logger.info(f"Search path {path}")
+            content_tags = container.select(path)
+            string_values = (
                 [content_tag.get_text().strip() for content_tag in content_tags]
                 if content_tags is not None
                 else ""
             )
-            res_dict[key] = string_values
-        return res_dict
+            res += " " + " ".join(string_values)
+        return res
 
     async def extract_structured_text_from_containers(self):
         logger.info("Extracting text in container from element path")
@@ -161,3 +214,21 @@ class ContainerExtractor:
             unextracted_contents.append(" ".join(filtered))
 
         return unextracted_contents
+
+    async def extract_from_one_website(self, html):
+        soup = prepare_html(html)
+        similar_containers = self.find_similar_containers(soup)
+        extracted_items_in_containers = await asyncio.gather(
+            *[
+                self.extract_items_in_container(container, self.template_structure)
+                for container in similar_containers
+            ]
+        )
+        res = await filter_non_empty_dicts(extracted_items_in_containers)
+        return res
+
+    async def extract_from_multiple_website(self, html_list):
+        res = await asyncio.gather(
+            *[self.extract_from_one_website(html) for html in html_list]
+        )
+        return res

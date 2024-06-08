@@ -2,6 +2,10 @@ from abc import ABC
 from backend.extractor.extractor import find_path, find_string_tag
 from backend.extractor.task.extract_item import ExtractItem
 from backend.extractor.utils import prepare_html
+from backend.logger import get_logger
+
+
+logger = get_logger()
 
 
 class ExtractTask(ABC):

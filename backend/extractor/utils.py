@@ -90,3 +90,10 @@ def prepare_html(html, clean_tags=[]):
     soup = clean_html(soup, clean_tags)
     soup = traverse_and_modify(soup)
     return soup
+
+
+def is_duplicate(new_path, existing_paths):
+    for path in existing_paths:
+        if path in new_path:
+            return True
+    return False
