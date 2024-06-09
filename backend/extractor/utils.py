@@ -2,6 +2,8 @@ import datetime
 from backend.extractor.db import init_db
 from backend.logger import get_logger
 from bs4 import BeautifulSoup
+import csv
+import json
 
 
 logger = get_logger()
@@ -97,3 +99,43 @@ def is_duplicate(new_path, existing_paths):
         if path in new_path:
             return True
     return False
+
+
+def save_crawled_data_to_csv(data, file_name):
+    # Extract column headers from the keys of the first dictionary
+    if isinstance(data, list):
+        headers = data[0].keys() if data else []
+    else:
+        headers = data.keys()
+    with open(f"{file_name}", "w") as csvfile:
+        writer = csv.DictWriter(csvfile, fieldnames=headers)
+        writer.writeheader()
+        writer.writerows(data)
+
+
+def save_crawled_data_to_db(db, url, page_name, extracted_info_name, data):
+    crawl_stats_ref = db.collection("crawl-stats")
+    res = crawl_stats_ref.where("page_name", "==", page_name).limit(1).get()
+    if res:
+        website_doc_ref = res[0].reference
+    else:
+        website_doc_ref = crawl_stats_ref.document()
+        website_doc_ref.set({"page_name": page_name})
+    # add nested collection
+    extracted_info_collection_ref = website_doc_ref.collection(extracted_info_name)
+    save_data = {**data}
+    if "id" in data.keys():
+        doc_id = data["id"]
+        del data["id"]
+        extracted_info_collection_ref.document(doc_id).set(save_data)
+    else:
+        extracted_info_collection_ref.add(save_data)
+
+
+def save_crawled_data_to_json(data, file_name):
+    if not isinstance(data, str):
+        with open(f"{file_name}", "w") as fp:
+            json.dump(data, fp, ensure_ascii=False)
+    else:
+        with open(f"{file_name}", "w") as outfile:
+            outfile.write(data)

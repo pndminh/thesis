@@ -23,6 +23,7 @@ load_dotenv()
 logger = get_logger()
 db = init_db()
 
+
 async def get_page_content(page, url, browser):
     try:
         timeout = 30000
@@ -45,6 +46,7 @@ async def get_page_content(page, url, browser):
         # await browser.close()
         # return html
         return page
+
 
 async def scroll_page(page, max_duration):
     await page.evaluate(
@@ -85,31 +87,42 @@ async def scroll_page(page, max_duration):
             prev_height = curr_height
             await asyncio.sleep(15)
 
+
 async def click_button(button):
     try:
         # Attempt to click on the button
-        await button.click()
+        await button.click(force=True)
         return True
     except Exception as e:
         # Log a message if an error occurs and continue to the next button
-        logger.warning("Timeout occurred")
+        logger.warning(e)
         return False
-    
+
+
 async def find_expand_button(page, button_text=None):
     button_text_string = (
         r"(Expand|See more|Xem thêm|Hiển thị)"
         if button_text is None
-        else rf"({"|".join(button_text)})"
+        else rf"""({"|".join(button_text)})"""
     )
     logger.info("Locating 'See more' buttons")
-    buttons = await page.get_by_role("button").filter(has_text=re.compile(button_text_string, re.IGNORECASE)).all()
-    results = await asyncio.gather(*(click_button(button) for button in buttons))
+    buttons = (
+        await page.get_by_role("button")
+        .filter(has_text=re.compile(button_text_string, re.IGNORECASE))
+        .all()
+    )
+    results = []
+    for button in buttons:
+        results.append(await click_button(button))
+    # results = await asyncio.gather(*(click_button(button) for button in buttons))
     count = sum(1 for result in results if result)
     logger.info(f"Clicked {count} 'See more' buttons out of {len(buttons)}")
+
 
 async def fetch_static_page(url):
     html = requests.get(url).content
     return html.decode("utf-8")
+
 
 def load_html_from_db(url):
     "Return a html of website from databse in parsed beautiful soup format"
@@ -121,15 +134,18 @@ def load_html_from_db(url):
         logger.info("Getting HTML from firebase")
         return html
 
-async def fetch_dynamic_page(url, max_duration=20, scroll=True, expand=False, expand_button_text=None):
+
+async def fetch_dynamic_page(
+    url, max_duration=20, scroll=True, expand=False, expand_button_text=None
+):
     async with async_playwright() as p:
-        browser = await p.chromium.launch(headless=True)
+        browser = await p.chromium.launch(headless=False)
         context = await browser.new_context()
         page = await context.new_page()
         # await save_session_storage(page)
         if not scroll:
             page = await get_page_content(page=page, url=url, browser=browser)
-        else: 
+        else:
             try:
                 await page.goto(url)
                 logger.info("Getting page")
@@ -144,17 +160,39 @@ async def fetch_dynamic_page(url, max_duration=20, scroll=True, expand=False, ex
         await browser.close()
     return html
 
+
 async def fetch_page(
-    url, static_fetch = False, max_duration=20, scroll=True, expand=False, expand_button_text=None
+    url,
+    static_fetch=False,
+    max_duration=20,
+    scroll=True,
+    expand=False,
+    expand_button_text=None,
 ):
     if static_fetch:
         html = await fetch_static_page(url)
         return html
     else:
-        html = await fetch_dynamic_page(url, max_duration, scroll, expand, expand_button_text)
+        html = await fetch_dynamic_page(
+            url, max_duration, scroll, expand, expand_button_text
+        )
         return html
 
-async def fetch_multiple_pages(urls, static_fetch = False, max_duration=20, scroll=True, expand=False, expand_button_text=None):
-    html_list = await asyncio.gather(*[fetch_page(url, static_fetch, max_duration, scroll, expand, expand_button_text) for url in urls])
+
+async def fetch_multiple_pages(
+    urls,
+    static_fetch=False,
+    max_duration=20,
+    scroll=True,
+    expand=False,
+    expand_button_text=None,
+):
+    html_list = await asyncio.gather(
+        *[
+            fetch_page(
+                url, static_fetch, max_duration, scroll, expand, expand_button_text
+            )
+            for url in urls
+        ]
+    )
     return html_list
-    

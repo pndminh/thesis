@@ -8,7 +8,7 @@ from backend.logger import get_logger
 logger = get_logger()
 
 
-class SingleElementExtractor(ExtractTask):
+class SinglePathElementExtractor(ExtractTask):
     def __init__(self, example_input: dict, html: str):
         super().__init__(example_input, html)
 
@@ -19,24 +19,26 @@ class SingleElementExtractor(ExtractTask):
             )
             for extract_item, result in zip(label, results):
                 if not result:
+                    logger.info("Removing item from search list")
                     label.remove(extract_item)
 
     async def prepare_extract_item(self, extract_item):
         try:
-            logger.info("Get item tags")
+            logger.info("1a. Get item tags")
             extract_item.tag = find_string_tag(
                 soup=self.soup, navigable_string_content=extract_item.content
             )
         except:
             logger.warning(f"Cannot find {extract_item.content}")
             return False
-
+        logger.info("1b. Getting item's path")
         extract_item.base_path = find_path(soup=self.soup, content=extract_item.tag)
         selector = extract_item.base_path.replace(" ", " > ")
         extract_item.search_path = selector
         extract_item.attributes = extract_item.tag.attrs
         if "by_class" in extract_item.extract_method:
             if "class" in extract_item.attributes:
+                logger.info("Adding class to search path")
                 extract_item.search_path += "." + ".".join(
                     extract_item.attributes["class"]
                 )
@@ -44,12 +46,10 @@ class SingleElementExtractor(ExtractTask):
                 logger.info("Tag does not contains class attribute")
         if "by_id" in extract_item.extract_method:
             if "id" in extract_item.attributes:
+                logger.info("Adding class to search path")
                 extract_item.search_path += "#" + extract_item.attributes["id"]
-
             else:
                 logger.info("Tag does not contain id attribute")
-        logger.info(f"Extracted search path: {extract_item.search_path}")
-
         return True
 
     def get_html(self, html):
@@ -63,12 +63,10 @@ class SingleElementExtractor(ExtractTask):
         for extract_item in extract_items:
             search_path = extract_item.search_path
             if not is_duplicate(search_path, search_paths):
-                logger.info("Adding search path to find list")
                 search_paths.append(search_path)
-        logger.info("Getting extract items paths")
         res = ""
         for path in search_paths:
-            print("searching path: ", path)
+            print("searching_path", path)
             similar_tags = soup.select(path)
             string_values = (
                 [tag.get_text().strip() for tag in similar_tags]
@@ -76,7 +74,7 @@ class SingleElementExtractor(ExtractTask):
                 else ""
             )
             res = res + " " + " ".join(string_values)
-            # res.append(string_values)
+        print(res)
         return res.strip()
 
     async def extract_task(self, soup, example_template) -> str:
@@ -91,8 +89,11 @@ class SingleElementExtractor(ExtractTask):
         # return res
 
     async def single_element_extract_run_task(self):
+        logger.info("STEP 1: PREPARING EXTRACT ITEMS WITH EXTRACT PATHS")
         await self.prepare_single_website_extract_template()
+        logger.info("STEP 2: EXTRACTING TEXT WITH PATH")
         res = await self.extract_task(self.soup, self.example_template)
+        return res
 
     async def extract_from_one_website(self, html, example_template):
         soup = prepare_html(html)
