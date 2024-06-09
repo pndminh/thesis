@@ -11,3 +11,6 @@ fastapi
 uvicorn
 playwright
 gradio
+matplotlib
+wordcloud
+underthesea
