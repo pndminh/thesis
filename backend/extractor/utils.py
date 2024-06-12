@@ -9,9 +9,9 @@ import json
 logger = get_logger()
 
 
-def clean_html(soup, tags=[]):
+def clean_html(soup, tags=[], use_default_tags=True):
     default_tags = ["script", "style", "link", "nav", "meta", "title"]
-    tags += [*default_tags]
+    tags += [*default_tags] if use_default_tags or len(tags) == 0 else tags
     """Receives a list of elements to remove from the soup."""
     for data in soup(tags):
         data.decompose()

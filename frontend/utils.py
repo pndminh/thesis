@@ -108,6 +108,22 @@ async def single_path_extract(html, contents_to_extract):
     return json_data
 
 
+async def single_path_extract_multiple_websites(html, html_list, contents_to_extractt):
+    # fresh start, append the first html to the first element
+    extractor = SinglePathElementExtractor(contents_to_extractt, html)
+    await extractor.prepare_single_website_extract_template()
+    res = await extractor.extract_from_multiple_websites(html_list)
+    return res
+
+
+async def container_extract_multiple_websites(html, html_list, contents_to_extract):
+    extractor = ContainerExtractor(contents_to_extract, html)
+    await extractor.prepare_single_website_extract_template()
+    await extractor.search_for_containers()
+    res = await extractor.extract_from_multiple_websites(html_list)
+    return res
+
+
 def get_page_name(url):
     pattern = r"https?://(?:www\.)?([^./]+)"
     match = re.search(pattern, url)

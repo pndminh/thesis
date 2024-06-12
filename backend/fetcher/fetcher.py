@@ -139,7 +139,7 @@ async def fetch_dynamic_page(
     url, max_duration=20, scroll=True, expand=False, expand_button_text=None
 ):
     async with async_playwright() as p:
-        browser = await p.chromium.launch(headless=False)
+        browser = await p.chromium.launch(headless=True)
         context = await browser.new_context()
         page = await context.new_page()
         # await save_session_storage(page)

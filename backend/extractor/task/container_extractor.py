@@ -79,6 +79,8 @@ class ContainerExtractor(ExtractTask):
             else:
                 logger.info("Tag does not contain id attribute")
 
+        return True
+
     async def search_for_containers(self):
         self.find_container_from_examples()
         # parallel
@@ -231,7 +233,7 @@ class ContainerExtractor(ExtractTask):
         res = await filter_non_empty_dicts(extracted_items_in_containers)
         return res
 
-    async def extract_from_multiple_website(self, html_list):
+    async def extract_from_multiple_websites(self, html_list):
         res = await asyncio.gather(
             *[self.extract_from_one_website(html) for html in html_list]
         )

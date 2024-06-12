@@ -66,7 +66,6 @@ class SinglePathElementExtractor(ExtractTask):
                 search_paths.append(search_path)
         res = ""
         for path in search_paths:
-            print("searching_path", path)
             similar_tags = soup.select(path)
             string_values = (
                 [tag.get_text().strip() for tag in similar_tags]
@@ -74,7 +73,6 @@ class SinglePathElementExtractor(ExtractTask):
                 else ""
             )
             res = res + " " + " ".join(string_values)
-        print(res)
         return res.strip()
 
     async def extract_task(self, soup, example_template) -> str:
@@ -97,15 +95,43 @@ class SinglePathElementExtractor(ExtractTask):
 
     async def extract_from_one_website(self, html, example_template):
         soup = prepare_html(html)
-        return await self.extract_task(soup, example_template)
+        res = await self.extract_task(soup, example_template)
+        return res
 
-    async def extract_from_multiple_website(self, html_list, example_template=None):
-        if example_template is None:
-            example_template = self.example_template
+    async def extract_from_multiple_websites(self, html_list, example_template=None):
         res = await asyncio.gather(
             *[
                 self.extract_from_one_website(html, example_template)
                 for html in html_list
             ]
         )
+        # res = await self.extract_from_one_website(html_list[0], self.example_template)
         return res
+
+    async def extract_links(self, soup=None):
+        if soup is None:
+            soup = self.soup
+        logger.info("STEP 1: PREPARING EXTRACT ITEMS WITH EXTRACT PATHS")
+        await self.prepare_single_website_extract_template()
+        logger.info("STEP 2: EXTRACTING LINKS")
+
+        async def extract_link_from_single_tag(label):
+            search_paths = []
+            for extract_item in label:
+                search_path = extract_item.search_path
+                if not is_duplicate(search_path, search_paths):
+                    search_paths.append(search_path)
+            links = []
+            for path in search_paths:
+                similar_tags = soup.select(path)
+                for tag in similar_tags:
+
+                    if "href" in tag.attrs:
+                        links.append(tag["href"])
+            return links
+
+        tasks = []
+        for label in self.example_template.values():
+            tasks.append(extract_link_from_single_tag(label))
+        results = await asyncio.gather(*tasks)
+        return dict(zip(self.example_template.keys(), results))
