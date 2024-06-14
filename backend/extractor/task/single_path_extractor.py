@@ -2,10 +2,19 @@ import asyncio
 from copy import deepcopy
 from backend.extractor.extractor import find_path, find_string_tag
 from backend.extractor.task.extract_task import ExtractTask
-from backend.extractor.utils import is_duplicate, prepare_html
+from backend.extractor.utils import is_dict_empty, is_duplicate, prepare_html
 from backend.logger import get_logger
 
 logger = get_logger()
+
+
+async def filter_non_empty_dicts(data):
+    tasks = [(d, is_dict_empty(d)) for d in data]
+    results = await asyncio.gather(*[task[1] for task in tasks])
+    non_empty_dicts = [
+        task[0] for task, is_empty in zip(tasks, results) if not is_empty
+    ]
+    return non_empty_dicts
 
 
 class SinglePathElementExtractor(ExtractTask):
@@ -99,13 +108,14 @@ class SinglePathElementExtractor(ExtractTask):
         return res
 
     async def extract_from_multiple_websites(self, html_list, example_template=None):
-        res = await asyncio.gather(
+        found_contents = await asyncio.gather(
             *[
                 self.extract_from_one_website(html, example_template)
                 for html in html_list
             ]
         )
         # res = await self.extract_from_one_website(html_list[0], self.example_template)
+        res = await filter_non_empty_dicts(found_contents)
         return res
 
     async def extract_links(self, soup=None):

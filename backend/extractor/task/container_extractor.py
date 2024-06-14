@@ -7,24 +7,13 @@ from backend.extractor.extractor import (
     lowest_common_ancestor,
 )
 from backend.extractor.task.extract_task import ExtractTask
-from backend.extractor.utils import is_duplicate, parse_html, prepare_html
+from backend.extractor.utils import is_dict_empty, is_duplicate, parse_html, prepare_html
 from backend.logger import get_logger
 
 logger = get_logger()
 
 
-async def is_dict_empty(d):
-    def is_empty(value):
-        if isinstance(value, str):
-            return not value.strip()  # Empty string or string with only spaces
-        elif isinstance(value, list):
-            return all(
-                is_empty(item) for item in value
-            )  # All items in the list are empty
-        else:
-            return not value  # Other types (None, False, etc.)
 
-    return all(is_empty(value) for value in d.values())
 
 
 # Asynchronous function to filter non-empty dictionaries

@@ -1,10 +1,12 @@
 import datetime
+import os
+
+import pandas as pd
 from backend.extractor.db import init_db
 from backend.logger import get_logger
 from bs4 import BeautifulSoup
 import csv
 import json
-
 
 logger = get_logger()
 
@@ -101,16 +103,38 @@ def is_duplicate(new_path, existing_paths):
     return False
 
 
+async def is_dict_empty(d):
+    def is_empty(value):
+        if isinstance(value, str):
+            return not value.strip()  # Empty string or string with only spaces
+        elif isinstance(value, list):
+            return all(
+                is_empty(item) for item in value
+            )  # All items in the list are empty
+        else:
+            return not value  # Other types (None, False, etc.)
+
+    return all(is_empty(value) for value in d.values())
+
+
 def save_crawled_data_to_csv(data, file_name):
     # Extract column headers from the keys of the first dictionary
-    if isinstance(data, list):
-        headers = data[0].keys() if data else []
+    data = pd.DataFrame(data)
+    if os.path.exists(file_name):
+        df = pd.read_csv(file_name)
+        save_df = pd.concat([df, data], ignore_index=True)
     else:
-        headers = data.keys()
-    with open(f"{file_name}", "w") as csvfile:
-        writer = csv.DictWriter(csvfile, fieldnames=headers)
-        writer.writeheader()
-        writer.writerows(data)
+        save_df = data
+
+    save_df.to_csv(file_name, mode="w", header=True, index=False)
+    # if isinstance(data, list):
+    #     headers = data[0].keys() if data else []
+    # else:
+    #     headers = data.keys()
+    # with open(f"{file_name}", "w") as csvfile:
+    #     writer = csv.DictWriter(csvfile, fieldnames=headers)
+    #     writer.writeheader()
+    #     writer.writerows(data)
 
 
 def save_crawled_data_to_db(db, url, page_name, extracted_info_name, data):
