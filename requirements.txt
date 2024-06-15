@@ -15,3 +15,4 @@ matplotlib
 wordcloud
 underthesea
 schedule
+langdetect

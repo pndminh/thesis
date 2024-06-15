@@ -1,8 +1,15 @@
 import asyncio
 import json
+import uuid
 from backend.llm.llm import LLM
 from backend.llm.utils import parse_llm_response_data
 from backend.logger import get_logger
+import pandas as pd
+import matplotlib.pyplot as plt
+from wordcloud import WordCloud
+import re
+from underthesea import word_tokenize
+from langdetect import detect
 
 logger = get_logger()
 
@@ -86,30 +93,67 @@ def extract_custom_info(article, extracts):
     return prompt
 
 
-async def setup_llm_extract_task(
-    data, extract_task, selected_columns=None, batch_size=10, delay=65
+def remove_regex_patterns(text, regex_patterns):
+    combined_pattern = "|".join(regex_patterns)
+    filtered_text = re.sub(combined_pattern, "", text)
+    return filtered_text
+
+
+def draw_word_cloud(data, stopwords, save=False):
+    logger.info("Generating word cloud")
+    wordcloud = WordCloud(
+        width=1200,
+        height=1200,
+        background_color="white",
+        stopwords=stopwords,
+        min_font_size=5,
+        font_step=1,
+    ).generate(data)
+
+    # Display WordCloud
+    plt.figure(figsize=(12, 12), facecolor=None)
+    plt.imshow(wordcloud)
+    plt.axis("off")
+    plt.tight_layout(pad=10)
+    plt.show()
+    img_id = str(uuid.uuid4())
+    save_path = ""
+    if save:
+        save_path = f"results/word_cloud/wordcloud_{img_id}.png"
+        plt.savefig(save_path)
+    return plt, save_path
+
+
+def prepare_word_cloud(
+    data,
+    selected_columns: list = None,
+    regex_patterns=None,
+    fixed_words=None,
 ):
-    to_classify = []
-    logger.info("Getting texts")
+    test = "".join([value for value in data[0].values()])
+    lang_detect = detect(test)
+    if lang_detect == "vi":
+        with open(
+            "backend/llm/vietnamese_stopwords.txt", "r", encoding="utf-8"
+        ) as file:
+            stopwords = set(file.read().splitlines())
+    else:
+        with open("backend/llm/english_stopwords.txt", "r") as file:
+            stopwords = set(file.read().splitlines())
+    if selected_columns is None:
+        selected_columns = data[0].keys()
+    corpus = ""
+    logger.info("Preprocessing data")
     for row in data:
-        text = "\n".join(value for key, value in row.items() if key in selected_columns)
-        to_classify.append(text)
-
-    def chunks(data, batch_size):
-        for i in range(0, len(data), batch_size):
-            yield data[i : i + batch_size]
-
-    batches = list(chunks(to_classify, 10))
-    responses = []
-    for i, batch in enumerate(batches):
-        logger.info(f"Processing batch number: {i + 1}")
-        try:
-            tasks = [extract_task(text) for text in batch]
-            batch_responses = await asyncio.gather(*tasks)
-            responses.extend(batch_responses)
-            # logger.info([response] for response in responses)
-        except Exception as e:
-            logger.warning(e)
-        finally:
-            await asyncio.sleep(delay)
-    return responses
+        for key, val in row.items():
+            row[key] = "" if val is None else val
+            if key in selected_columns:
+                if regex_patterns is not None:
+                    text = remove_regex_patterns(text, regex_patterns)
+                text = word_tokenize(val, format="text", fixed_words=fixed_words)
+                print(text)
+                text = text.lower()
+                tokens = text.split()
+                # Join the filtered tokens
+                corpus += " ".join(tokens) + " "
+    return corpus, stopwords
