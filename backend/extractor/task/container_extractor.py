@@ -7,13 +7,15 @@ from backend.extractor.extractor import (
     lowest_common_ancestor,
 )
 from backend.extractor.task.extract_task import ExtractTask
-from backend.extractor.utils import is_dict_empty, is_duplicate, parse_html, prepare_html
+from backend.extractor.utils import (
+    is_dict_empty,
+    is_duplicate,
+    parse_html,
+    prepare_html,
+)
 from backend.logger import get_logger
 
 logger = get_logger()
-
-
-
 
 
 # Asynchronous function to filter non-empty dictionaries

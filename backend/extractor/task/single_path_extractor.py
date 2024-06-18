@@ -18,8 +18,8 @@ async def filter_non_empty_dicts(data):
 
 
 class SinglePathElementExtractor(ExtractTask):
-    def __init__(self, example_input: dict, html: str):
-        super().__init__(example_input, html)
+    def __init__(self, example_input: dict, html: str, html_list=[]):
+        super().__init__(example_input, html, html_list)
 
     async def prepare_single_website_extract_template(self):
         for label in self.example_template.values():
@@ -89,7 +89,7 @@ class SinglePathElementExtractor(ExtractTask):
         for label in example_template.values():
             tasks.append(self.extract_similar_text_from_example(soup, label))
         results = await asyncio.gather(*tasks)
-        return dict(zip(example_template.keys(), results))
+        return [dict(zip(example_template.keys(), results))]
         # res = {}
         # for key, label in self.example_template.items():
         #     res[key] = await self.extract_similar_text_from_example(self.soup, label)
@@ -105,12 +105,13 @@ class SinglePathElementExtractor(ExtractTask):
     async def extract_from_one_website(self, html, example_template):
         soup = prepare_html(html)
         res = await self.extract_task(soup, example_template)
-        return res
+        return res[0]
 
-    async def extract_from_multiple_websites(self, html_list, example_template=None):
+    async def extract_from_multiple_websites(self, html_list):
+        await self.prepare_single_website_extract_template()
         found_contents = await asyncio.gather(
             *[
-                self.extract_from_one_website(html, example_template)
+                self.extract_from_one_website(html, self.example_template)
                 for html in html_list
             ]
         )

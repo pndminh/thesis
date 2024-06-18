@@ -3,13 +3,15 @@ import re
 import sys
 import tempfile
 import uuid
-
+import gradio as gr
+import pandas as pd
 
 sys.path.append("./")
 from backend.extractor.task.container_extractor import ContainerExtractor
 from backend.extractor.task.single_path_extractor import SinglePathElementExtractor
-from backend.fetcher.fetcher import fetch_page
+from backend.fetcher.fetcher import fetch_multiple_pages, fetch_page
 from backend.extractor.utils import save_crawled_data_to_csv, save_crawled_data_to_json
+from backend.extractor.task.nlp_tasks import create_word_cloud
 
 
 async def get_url(
@@ -19,8 +21,10 @@ async def get_url(
     scroll_timeout=None,
     expand_text=None,
 ):
-    if fetch_options_radio == "Static":
-        return await fetch_page(url=url, static_fetch=True)
+    # print("click triggerd")
+
+    # return await fetch_page(url=url, static_fetch=True)
+    static_fetch = True if fetch_options_radio == "Static" else False
     if "Infinite Scroll" in fetch_options_checkbox:
         scroll = True
         max_duration = scroll_timeout
@@ -34,14 +38,32 @@ async def get_url(
     else:
         expand = False
         expand_button_text = None
-    html = await fetch_page(
-        url=url,
-        static_fetch=False,
-        max_duration=max_duration,
-        scroll=scroll,
-        expand=expand,
-        expand_button_text=expand_button_text,
-    )
+
+    url_list = url.split(",")
+    url_list = [url.strip() for url in url_list]
+    print(url_list)
+    # if len(url_list) == 1:
+    #     html = await fetch_page(
+    #         url=url,
+    #         static_fetch=False,
+    #         max_duration=max_duration,
+    #         scroll=scroll,
+    #         expand=expand,
+    #         expand_button_text=expand_button_text,
+    #     )
+    #     return html
+    try:
+        html = await fetch_multiple_pages(
+            url_list,
+            static_fetch=static_fetch,
+            max_duration=max_duration,
+            scroll=scroll,
+            expand=expand,
+            expand_button_text=expand_button_text,
+        )
+        gr.Info("Fetched!")
+    except Exception as e:
+        gr.Error("Fetch failed")
     return html
 
 
@@ -64,7 +86,7 @@ def add_data(label_input, content_input, extract_methods, contents_to_extract: d
             .strip()
             .replace(" ", "_")
         )
-        print(extract_method)
+        # print(extract_method)
 
     if label_input in contents_to_extract.keys():
         print(
@@ -79,38 +101,50 @@ def add_data(label_input, content_input, extract_methods, contents_to_extract: d
     return contents_to_extract
 
 
-async def extract(html, contents_to_extract):
-    # example_container = json.loads(contents_to_extract)
-    extractor = ContainerExtractor(
-        contents_to_extract,
-        html,
-    )
-    structured_contents = await extractor.container_extract_run_task()
+async def handle_extract(html_list, contents_to_extract, batch, extract_type):
+    if extract_type == "Direct path extract":
+        res = await single_path_extract(html_list, contents_to_extract, batch)
+    else:
+        res = await container_extract(html_list, contents_to_extract, batch)
+    return res
 
+
+async def container_extract(html_list, contents_to_extract, batch):
+    html = html_list[0]
+    if "True" in batch:
+        structured_contents = await container_extract_multiple_websites(
+            html, html_list, contents_to_extract
+        )
+    else:
+        # example_container = json.loads(contents_to_extract)
+        extractor = ContainerExtractor(contents_to_extract, html, html_list)
+        structured_contents = await extractor.container_extract_run_task()
+    print(structured_contents)
     # return structured_contents, unstructured_contents
-    json_data = json.dumps(obj=structured_contents, indent=4, ensure_ascii=False)
-    print(json_data)
-    return json_data
+    # json_data = json.dumps(obj=structured_contents, indent=4, ensure_ascii=False)
+    df = pd.DataFrame(structured_contents)
+    return df
 
 
-async def single_path_extract(html, contents_to_extract):
-    print(contents_to_extract)
-    print(type(contents_to_extract))
-    # print(example_container)
-    extractor = SinglePathElementExtractor(
-        contents_to_extract,
-        html,
-    )
-    res = await extractor.single_element_extract_run_task()
+async def single_path_extract(html_list, contents_to_extract, batch):
+    html = html_list[0]
+    if "True" in batch:
+        res = await single_path_extract_multiple_websites(
+            html, html_list, contents_to_extract
+        )
+    else:
+        extractor = SinglePathElementExtractor(contents_to_extract, html, html_list)
+        res = await extractor.single_element_extract_run_task()
 
-    json_data = json.dumps(obj=res, indent=4, ensure_ascii=False)
-    print(json_data)
-    return json_data
+    # json_data = json.dumps(obj=res, indent=4, ensure_ascii=False)
+    # print(json_data)
+    df = pd.DataFrame(res)
+    return df
 
 
-async def single_path_extract_multiple_websites(html, html_list, contents_to_extractt):
+async def single_path_extract_multiple_websites(html, html_list, contents_to_extract):
     # fresh start, append the first html to the first element
-    extractor = SinglePathElementExtractor(contents_to_extractt, html)
+    extractor = SinglePathElementExtractor(contents_to_extract, html)
     await extractor.prepare_single_website_extract_template()
     res = await extractor.extract_from_multiple_websites(html_list)
     return res
@@ -133,10 +167,10 @@ def get_page_name(url):
 
 
 def save_to_csv(data, url):
-    if not isinstance(data, list):
-        data = [json.loads(data)]
-    else:
-        data = json.loads(data)
+    # if not isinstance(data, list):
+    #     data = [json.loads(data)]
+    # else:
+    #     data = json.loads(data)
 
     uid = str(uuid.uuid4())[::8]
     page_name = get_page_name(url)
@@ -152,3 +186,37 @@ def save_to_json(data, url):
     save_path = f"./results/json/{page_name}_{uid}.json"
     save_crawled_data_to_json(data, save_path)
     return save_path
+
+
+def load_data_to_table(file):
+    if file is None:
+        return pd.DataFrame()
+    df = pd.read_csv(file.name)
+    return df
+
+
+def load_extract_output(data):
+    return data
+
+
+def get_cloud(
+    data, colormap, max_words, columns, regex_patterns, fixed_words, background_color
+):
+    data.fillna("")
+    dictionaries = data.to_dict("records")
+    selected_columns = columns.split(",")
+    selected_columns = [col.strip() for col in selected_columns]
+    regex_list = regex_patterns.split(",")
+    regex_list = [pattern.strip() for pattern in regex_list]
+    fixed_words_list = fixed_words.split(",")
+    fixed_words_list = [word.strip() for word in fixed_words_list]
+    return create_word_cloud(
+        dictionaries,
+        colormap,
+        background_color,
+        max_words,
+        selected_columns,
+        regex_list,
+        fixed_words_list,
+        save=True,
+    )

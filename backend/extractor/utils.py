@@ -117,16 +117,16 @@ async def is_dict_empty(d):
     return all(is_empty(value) for value in d.values())
 
 
-def save_crawled_data_to_csv(data, file_name):
+def save_crawled_data_to_csv(data, file_path):
     # Extract column headers from the keys of the first dictionary
     data = pd.DataFrame(data)
-    if os.path.exists(file_name):
-        df = pd.read_csv(file_name)
+    if os.path.exists(file_path):
+        df = pd.read_csv(file_path)
         save_df = pd.concat([df, data], ignore_index=True)
     else:
         save_df = data
 
-    save_df.to_csv(file_name, mode="w", header=True, index=False)
+    save_df.to_csv(f"{file_path}", mode="w", header=True, index=False)
     # if isinstance(data, list):
     #     headers = data[0].keys() if data else []
     # else:
@@ -156,10 +156,7 @@ def save_crawled_data_to_db(db, url, page_name, extracted_info_name, data):
         extracted_info_collection_ref.add(save_data)
 
 
-def save_crawled_data_to_json(data, file_name):
-    if not isinstance(data, str):
-        with open(f"{file_name}", "w") as fp:
-            json.dump(data, fp, ensure_ascii=False)
-    else:
-        with open(f"{file_name}", "w") as outfile:
-            outfile.write(data)
+def save_crawled_data_to_json(data, file_path):
+    data.to_json(f"{file_path}")
+    # with open(f"{file_name}", "w") as outfile:
+    #     outfile.write(json)

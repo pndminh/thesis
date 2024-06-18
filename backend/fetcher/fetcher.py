@@ -36,6 +36,7 @@ async def get_page_content(page, url, browser):
         print(
             f"Timeout occurred after {timeout / 1000} seconds. Capturing the available content."
         )
+        return "Timeout error"
     except PlaywrightTimeoutError as e:
         # Handle Playwright-specific timeout error if needed
         print(f"Playwright timeout error: {str(e)}")
@@ -68,7 +69,8 @@ async def scroll_page(page, max_duration):
             logger.info("Closed login popups")
             await page.mouse.wheel(-1000, 0)
     except Exception as e:
-        print("Error closing popup:", str(e))
+        # print("Error closing popup:", str(e))
+        return e
     while True:
         logger.info("Handling scrolls")
         curr_height = await page.evaluate("(window.innerHeight + window.scrollY)")
@@ -120,8 +122,11 @@ async def find_expand_button(page, button_text=None):
 
 
 async def fetch_static_page(url):
-    html = requests.get(url).content
-    return html.decode("utf-8")
+    try:
+        html = requests.get(url).content
+        return html.decode("utf-8")
+    except Exception as e:
+        return e
 
 
 def load_html_from_db(url):
@@ -150,8 +155,7 @@ async def fetch_dynamic_page(
                 await page.goto(url)
                 logger.info("Getting page")
             except Exception as e:
-                print(str(e))
-                return
+                return e
             await scroll_page(page, max_duration=max_duration)
         if expand:
             await find_expand_button(page, expand_button_text)
@@ -170,8 +174,11 @@ async def fetch_page(
     expand_button_text=None,
 ):
     if static_fetch:
-        html = await fetch_static_page(url)
-        return html
+        try:
+            html = await fetch_static_page(url)
+            return html
+        except Exception as e:
+            return e
     else:
         html = await fetch_dynamic_page(
             url, max_duration, scroll, expand, expand_button_text
@@ -187,12 +194,17 @@ async def fetch_multiple_pages(
     expand=False,
     expand_button_text=None,
 ):
-    html_list = await asyncio.gather(
-        *[
-            fetch_page(
-                url, static_fetch, max_duration, scroll, expand, expand_button_text
-            )
-            for url in urls
-        ]
-    )
-    return html_list
+    try:
+
+        html_list = await asyncio.gather(
+            *[
+                fetch_page(
+                    url, static_fetch, max_duration, scroll, expand, expand_button_text
+                )
+                for url in urls
+            ]
+        )
+        # print("list from fetcher", html_list)
+        return html_list
+    except Exception as e:
+        return e
