@@ -28,20 +28,17 @@ class LLM:
         top_p=0.1,
         top_k=40,
         temperature=0.1,
-        max_output_tokens=4096,
         system_instruction=None,
         **args,
     ):
         self.top_p = top_p
         self.top_k = top_k
         self.temperature = temperature
-        self.max_output_tokens = max_output_tokens
         self.system_instruction = system_instruction
         configs = {
             "top_p": self.top_p,
             "top_k": self.top_k,
             "temperature": self.temperature,
-            "max_output_tokens": self.max_output_tokens,
             **args,
         }
         self.model = genai.GenerativeModel(
@@ -72,7 +69,6 @@ class LLM:
             tools=[function_schema],
             generation_config=genai.types.GenerationConfig(
                 candidate_count=1,
-                max_output_tokens=self.max_output_tokens,
                 temperature=self.temperature,
                 top_p=self.top_p,
             ),
