@@ -1,5 +1,6 @@
 import asyncio
 import json
+import string
 import uuid
 from backend.llm.llm import LLM
 from backend.llm.utils import parse_llm_response_data
@@ -40,7 +41,7 @@ async def extract(
     return parsed_response
 
 
-async def llm_get_tags(text):
+async def llm_task(text, tasks):
     llm = LLM(
         system_instruction=(
             """Your job is to process the following text and extract relevant information for various tasks. 
@@ -49,20 +50,24 @@ async def llm_get_tags(text):
         response_mime_type="application/json",
     )
     prompt = f"""Extract the required information from the following text and output in the following JSON format:
-             {{
-             "mentions": "List all name of people, subjects, organizations, that the text mentions in keywords"
-             "tags": "Keywords of the categories that the text might belong to"
-             }}
+             {tasks}
              ---
              - Follow the instructions to extract the information as requested
-             - The value of the JSON should be kept in the language of the text, keep the key of the output JSON as requested.
+             - The value of the JSON should be in Vietnamese, keep the key of the output JSON in English as requested.
              - Output only the JSON object.
              ---
              Text: {text}"""
     response = await llm.generate(prompt)
     parsed_response = parse_llm_response_data(response)[0]
-
     return parsed_response
+
+
+def get_task_dict(task):
+    task_dict = json.loads(task)
+    res = {}
+    for key in task_dict.keys():
+        res[key] = ""
+    return res
 
 
 def get_summarize_prompt(text):
@@ -99,15 +104,25 @@ def remove_regex_patterns(text, regex_patterns):
     return filtered_text
 
 
-def draw_word_cloud(data, stopwords, save=False):
+def draw_word_cloud(
+    data,
+    stopwords,
+    colormap,
+    background_color,
+    max_words,
+    save=False,
+):
     logger.info("Generating word cloud")
     wordcloud = WordCloud(
-        width=1200,
-        height=1200,
-        background_color="white",
+        width=500,
+        height=500,
+        background_color=background_color,
         stopwords=stopwords,
         min_font_size=5,
-        font_step=1,
+        font_step=3,
+        normalize_plurals=True,
+        colormap=colormap,
+        max_words=max_words,
     ).generate(data)
 
     # Display WordCloud
@@ -115,8 +130,8 @@ def draw_word_cloud(data, stopwords, save=False):
     plt.imshow(wordcloud)
     plt.axis("off")
     plt.tight_layout(pad=10)
-    plt.show()
     img_id = str(uuid.uuid4())
+    logger.info("Drawn word cloud")
     save_path = ""
     if save:
         save_path = f"results/word_cloud/wordcloud_{img_id}.png"
@@ -126,7 +141,7 @@ def draw_word_cloud(data, stopwords, save=False):
 
 def prepare_word_cloud(
     data,
-    selected_columns: list = None,
+    selected_columns: list = [],
     regex_patterns=None,
     fixed_words=None,
 ):
@@ -140,20 +155,24 @@ def prepare_word_cloud(
     else:
         with open("backend/llm/english_stopwords.txt", "r") as file:
             stopwords = set(file.read().splitlines())
-    if selected_columns is None:
-        selected_columns = data[0].keys()
+    if len(selected_columns) == 0:
+        select_columns = list(data[0].keys())
+    else:
+        select_columns = selected_columns
     corpus = ""
     logger.info("Preprocessing data")
     for row in data:
         for key, val in row.items():
             row[key] = "" if val is None else val
-            if key in selected_columns:
-                if regex_patterns is not None:
-                    text = remove_regex_patterns(text, regex_patterns)
-                text = word_tokenize(val, format="text", fixed_words=fixed_words)
-                print(text)
+            if key in select_columns:
+                text = val
                 text = text.lower()
+                if len(regex_patterns) != 0:
+                    text = remove_regex_patterns(text, regex_patterns)
+                text = word_tokenize(text, format="text", fixed_words=fixed_words)
+                text = text.translate(
+                    str.maketrans("", "", """!"#$%&\'()*+,-./:;<=>?@[\\]^`{|}~""")
+                )
                 tokens = text.split()
-                # Join the filtered tokens
                 corpus += " ".join(tokens) + " "
     return corpus, stopwords

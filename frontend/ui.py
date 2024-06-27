@@ -1,3 +1,4 @@
+import json
 import os
 import gradio as gr
 import sys
@@ -5,8 +6,8 @@ from matplotlib import colormaps
 
 
 from utils import (
+    add_classify_task,
     add_data,
-    container_extract,
     get_cloud,
     get_url,
     handle_extract,
@@ -14,7 +15,6 @@ from utils import (
     load_extract_output,
     save_to_csv,
     save_to_json,
-    single_path_extract,
 )
 
 sys.path.append("./")
@@ -281,7 +281,7 @@ with gr.Blocks(css=css) as demo:
                 with gr.Column():
                     max_words = gr.Number(
                         label="Max number of words",
-                        value=50,
+                        value=150,
                         interactive=True,
                         minimum=0,
                     )
@@ -295,16 +295,20 @@ with gr.Blocks(css=css) as demo:
                         value="magma",
                         interactive=True,
                     )
-                with gr.Column():
                     selected_columns_input = gr.Textbox(label="Get data from columns")
                     regex_patterns_input = gr.Textbox(
                         label="Phrases or Regex patterns to remove"
                     )
-                    fixed_words_input = gr.Textbox(
-                        label="Fixed words (Vietnamese only)"
-                    )
-            wordcloud_button = gr.Button("Generate Word Cloud", variant="primary")
-            wordcloud_result = gr.Image(label="Result")
+                    fixed_words_input = gr.Textbox(label="Fixed words")
+
+                wordcloud_result = gr.Image(
+                    height=700, width=700, label="Result", show_download_button=True
+                )
+            wordcloud_button = gr.Button(
+                "Generate Word Cloud",
+                variant="primary",
+            )
+
         wordcloud_button.click(
             get_cloud,
             [
@@ -318,4 +322,32 @@ with gr.Blocks(css=css) as demo:
             ],
             wordcloud_result,
         )
+
+    with gr.Tab("Classification"):
+        with gr.Row():
+            with gr.Column():
+                task_name = gr.Textbox(label="Task name")
+                task_description = gr.Textbox(label="Task description")
+            task_list = gr.State("")
+            task_list_output = gr.JSON(label="Task list")
+        with gr.Row():
+            add_task_button = gr.Button("Add task")
+            analyze_button = gr.Button("Analyze", variant="primary")
+        analysis_result = gr.DataFrame(wrap=True, visible=False)
+
+    def convert_to_json(task_list):
+        res = json.loads(f"{{{task_list}}}")
+        return gr.JSON(res)
+
+    add_task_button.click(
+        add_classify_task,
+        inputs=[task_name, task_description, task_list],
+        outputs=task_list,
+    ).then(convert_to_json, inputs=task_list, outputs=task_list_output)
+
+    # analyze_button.click(
+    #     llm_classify_task,
+    #     inputs=task_list,
+    #     outputs=analysis_result,
+    # )
 demo.launch()

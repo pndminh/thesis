@@ -205,11 +205,17 @@ def get_cloud(
     data.fillna("")
     dictionaries = data.to_dict("records")
     selected_columns = columns.split(",")
-    selected_columns = [col.strip() for col in selected_columns]
+    selected_columns = (
+        [col.strip() for col in selected_columns] if columns != "" else []
+    )
     regex_list = regex_patterns.split(",")
-    regex_list = [pattern.strip() for pattern in regex_list]
+    regex_list = (
+        [pattern.strip() for pattern in regex_list] if regex_patterns != "" else []
+    )
     fixed_words_list = fixed_words.split(",")
-    fixed_words_list = [word.strip() for word in fixed_words_list]
+    fixed_words_list = (
+        [word.strip() for word in fixed_words_list] if fixed_words != "" else []
+    )
     return create_word_cloud(
         dictionaries,
         colormap,
@@ -220,3 +226,17 @@ def get_cloud(
         fixed_words_list,
         save=True,
     )
+
+
+def add_classify_task(task_name, task_description, tasks):
+    string = f"""\"{task_name}\": \"{task_description}\""""
+    if tasks == "":
+        tasks = string
+    else:
+        tasks += "," + string
+    print(tasks)
+    return tasks
+
+
+def llm_classify_task(tasks):
+    pass
