@@ -16,3 +16,4 @@ wordcloud
 underthesea
 schedule
 langdetect
+streamlit

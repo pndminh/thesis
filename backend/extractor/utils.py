@@ -89,6 +89,7 @@ def prepare_html(html, clean_tags=[]):
     "clean and parse html to prepare it for extraction"
     if type(html) is str:
         soup = parse_html(html)
+        print(soup)
     else:
         soup = html
     soup = clean_html(soup, clean_tags)
