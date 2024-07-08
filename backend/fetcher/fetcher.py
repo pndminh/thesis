@@ -26,15 +26,15 @@ db = init_db()
 
 async def get_page_content(page, url, browser):
     try:
-        timeout = 30000
+        timeout = 30
         await asyncio.wait_for(
             page.goto(url, wait_until="networkidle"),
-            timeout=timeout / 1000,  # Convert milliseconds to seconds
+            timeout=timeout,
         )
     except asyncio.TimeoutError:
         # If the custom timeout occurs, catch the error and proceed to capture HTML
         print(
-            f"Timeout occurred after {timeout / 1000} seconds. Capturing the available content."
+            f"Timeout occurred after {timeout} seconds. Capturing the available content."
         )
         return "Timeout error"
     except PlaywrightTimeoutError as e:
@@ -114,9 +114,9 @@ async def find_expand_button(page, button_text=None):
         .all()
     )
     results = []
-    for button in buttons:
-        results.append(await click_button(button))
-    # results = await asyncio.gather(*(click_button(button) for button in buttons))
+    # for button in buttons:
+    #     results.append(await click_button(button))
+    results = await asyncio.gather(*(click_button(button) for button in buttons))
     count = sum(1 for result in results if result)
     logger.info(f"Clicked {count} 'See more' buttons out of {len(buttons)}")
 

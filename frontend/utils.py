@@ -6,12 +6,14 @@ import uuid
 import gradio as gr
 import pandas as pd
 
+
 sys.path.append("./")
 from backend.extractor.task.container_extractor import ContainerExtractor
 from backend.extractor.task.single_path_extractor import SinglePathElementExtractor
 from backend.fetcher.fetcher import fetch_multiple_pages, fetch_page
 from backend.extractor.utils import save_crawled_data_to_csv, save_crawled_data_to_json
 from backend.extractor.task.nlp_tasks import create_word_cloud
+from backend.extractor.task.llm_utils import combine_res, llm_extract_task
 
 
 async def get_url(
@@ -238,5 +240,19 @@ def add_classify_task(task_name, task_description, tasks):
     return tasks
 
 
-def llm_classify_task(tasks):
-    pass
+async def llm_classify_task(data, tasks, columns):
+    data.fillna("")
+    # print(tasks)
+    dictionaries = data.to_dict("records")
+    selected_columns = columns.split(",")
+    selected_columns = (
+        [col.strip() for col in selected_columns] if columns != "" else []
+    )
+    print(selected_columns)
+    responses = await llm_extract_task(
+        data=dictionaries, llm_task_format=tasks, columns=columns
+    )
+    # print("from ui utils", responses, type(responses))
+    result = combine_res(dictionaries, responses, tasks)
+    df = pd.DataFrame(result)
+    return df

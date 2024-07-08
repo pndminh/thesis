@@ -185,7 +185,7 @@ class ContainerExtractor(ExtractTask):
                 if content_tags is not None
                 else ""
             )
-            res += " " + " ".join(string_values)
+            res += " " + ". ".join(string_values)
         return res.strip()
 
     async def extract_structured_text_from_containers(self):

@@ -58,16 +58,72 @@ async def llm_task(text, tasks):
              ---
              Text: {text}"""
     response = await llm.generate(prompt)
-    parsed_response = parse_llm_response_data(response)[0]
+    # print(prompt)
+    parsed_response = json.loads(response)
+    print(parsed_response)
     return parsed_response
 
 
 def get_task_dict(task):
-    task_dict = json.loads(task)
     res = {}
-    for key in task_dict.keys():
+    for key in task.keys():
         res[key] = ""
     return res
+
+
+async def llm_extract_task(
+    data, llm_task_format, columns=None, batch_size=12, delay=65
+):
+    llm_task_json = json.dumps(llm_task_format)
+    to_classify = []
+    logger.info("Getting texts")
+    if len(columns) == 0:
+        selected_columns = list(data[0].keys())
+    else:
+        selected_columns = columns
+
+    for row in data:
+        text = "\n".join(value for key, value in row.items() if key in selected_columns)
+        to_classify.append(text)
+
+    def chunks(data, batch_size):
+        for i in range(0, len(data), batch_size):
+            yield data[i : i + batch_size]
+
+    batches = list(chunks(to_classify, batch_size))
+    print(batches)
+    responses = []
+    print(llm_task_json)
+    for i, batch in enumerate(batches):
+        logger.info(f"Processing batch number: {i + 1}")
+        tasks = [llm_task(text, llm_task_json) for text in batch]
+        try:
+            batch_responses = await asyncio.gather(*tasks, return_exceptions=True)
+            for response in batch_responses:
+                if isinstance(response, Exception):
+                    responses.append(response)
+                    print("error")
+                    # print(response)
+                else:
+                    responses.append(response)
+        except Exception as e:
+            print(f"Error processing batch number: {i + 1}, Error: {e}")
+            # If the whole batch fails, add empty responses for the entire batch
+            # responses.extend([get_task_dict(llm_task_format) for _ in batch])
+        finally:
+            if i < len(batches) - 1:
+                await asyncio.sleep(delay)
+    # print("from llm extract tag class ", responses)
+    return responses
+
+
+def combine_res(data, responses, tasks):
+    for i, record in enumerate(data):
+        record.update(responses[i])
+    # for record, response in zip(data, responses):
+    #     print("from combine_res", response, type(response))
+    #     record.update(response)
+    return data
 
 
 def get_summarize_prompt(text):
@@ -123,6 +179,7 @@ def draw_word_cloud(
         normalize_plurals=True,
         colormap=colormap,
         max_words=max_words,
+        collocations=False,
     ).generate(data)
 
     # Display WordCloud

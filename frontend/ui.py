@@ -11,6 +11,7 @@ from utils import (
     get_cloud,
     get_url,
     handle_extract,
+    llm_classify_task,
     load_data_to_table,
     load_extract_output,
     save_to_csv,
@@ -328,12 +329,13 @@ with gr.Blocks(css=css) as demo:
             with gr.Column():
                 task_name = gr.Textbox(label="Task name")
                 task_description = gr.Textbox(label="Task description")
+                select_columns_input = gr.Textbox(label="Select columns")
             task_list = gr.State("")
             task_list_output = gr.JSON(label="Task list")
         with gr.Row():
             add_task_button = gr.Button("Add task")
             analyze_button = gr.Button("Analyze", variant="primary")
-        analysis_result = gr.DataFrame(wrap=True, visible=False)
+        analysis_result = gr.DataFrame(wrap=True, visible=True)
 
     def convert_to_json(task_list):
         res = json.loads(f"{{{task_list}}}")
@@ -345,9 +347,10 @@ with gr.Blocks(css=css) as demo:
         outputs=task_list,
     ).then(convert_to_json, inputs=task_list, outputs=task_list_output)
 
-    # analyze_button.click(
-    #     llm_classify_task,
-    #     inputs=task_list,
-    #     outputs=analysis_result,
-    # )
+    analyze_button.click(
+        llm_classify_task,
+        inputs=[analysis_table, task_list_output, select_columns_input],
+        outputs=analysis_result,
+    )
+
 demo.launch()
