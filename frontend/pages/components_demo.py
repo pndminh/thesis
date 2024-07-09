@@ -75,7 +75,21 @@ with st.container():
         word_cloud_generate_btn = st.form_submit_button(
             "Generate word cloud", use_container_width=True, type="primary"
         )
-    word_cloud_img = tab1.image(
-        "./results/word_cloud/wordcloud_0b4cb6d5-f3e7-447d-bc37-349ea3f0c51e.png",
-        use_column_width="auto",
-    )
+    if word_cloud_generate_btn:
+        word_cloud_img = tab1.image(
+            "./results/word_cloud/wordcloud_0b4cb6d5-f3e7-447d-bc37-349ea3f0c51e.png",
+            use_column_width="auto",
+        )
+
+    tab2.header("LLM analysis")
+    col1, col2 = tab2.columns(2)
+    classification_label = col1.text_input("Task name")
+    classification_text = col1.text_area("Task description")
+    code = """task_preview = {"task": "description"}"""
+    task_preview = col2.code(code, "python")
+    col1, col2, col3 = tab2.columns(3)
+    reset_btn = col1.button("Clear tasks", use_container_width=True)
+    add_task_btn = col2.button("Add task", use_container_width=True)
+    analyze_btn = col3.button("Analyze", use_container_width=True, type="primary")
+    if analyze_btn:
+        result_table = st.table(pd.DataFrame())
