@@ -25,8 +25,10 @@ db = init_db()
 
 
 async def get_page_content(page, url, browser):
+    logger.info("Navigating to page")
     try:
         timeout = 30
+        logger.info("Waiting for page to load")
         await asyncio.wait_for(
             page.goto(url, wait_until="networkidle"),
             timeout=timeout,
@@ -122,6 +124,7 @@ async def find_expand_button(page, button_text=None):
 
 
 async def fetch_static_page(url):
+    logger.info(f"Fetching static page: {url}")
     try:
         html = requests.get(url).content
         return html.decode("utf-8")
@@ -144,6 +147,7 @@ async def fetch_dynamic_page(
     url, max_duration=20, scroll=True, expand=False, expand_button_text=None
 ):
     async with async_playwright() as p:
+        logger.info("Launching headless browser")
         browser = await p.chromium.launch(headless=True)
         context = await browser.new_context()
         page = await context.new_page()
@@ -152,8 +156,8 @@ async def fetch_dynamic_page(
             page = await get_page_content(page=page, url=url, browser=browser)
         else:
             try:
+                logger.info(f"Navigating to page {url}")
                 await page.goto(url)
-                logger.info("Getting page")
             except Exception as e:
                 return e
             await scroll_page(page, max_duration=max_duration)
