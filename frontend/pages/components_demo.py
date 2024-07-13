@@ -18,6 +18,7 @@ from frontend.pages.utils import (
     clear_extract_settings,
     clear_fetch_inputs,
     fetch,
+    generate_cloud_handler,
     handle_extract,
     init_fetch_state,
     write_html_files,
@@ -188,6 +189,7 @@ async def extract_module():
                 batch,
                 extract_method,
             )
+            st.session_state.extracted_result_dataframe = result
             result_table = st.table(result)
             col1, col2 = st.columns(2)
             page_name = get_page_name(st.session_state.url_input)
@@ -212,21 +214,47 @@ async def downstream_analysis():
         st.title("Downstream analysis module")
         tab1, tab2 = st.tabs(["Word Cloud Generator", "LLM Analysis"])
         tab1.header("Word Cloud Generator")
-        with tab1.form("word_cloud_generator"):
-            col1, col2 = st.columns(2, vertical_alignment="top")
-            max_words = col1.number_input("Maximum number of words", value=70)
-            background_color = col1.color_picker("Background color")
-            color_maps = list(colormaps)
-            color_scheme = col1.selectbox("Color scheme", options=color_maps)
-            select_columns = col2.text_input("Select data from columns")
-            regex_patterns = col2.text_input("Phrases/patterns to remove")
-            fixed_words = col2.text_input("Fixed words")
-            word_cloud_generate_btn = st.form_submit_button(
-                "Generate word cloud", use_container_width=True, type="primary"
+        if st.session_state.get("select_data_for_analysis") == "Upload data":
+            expander = st.expander("Upload data", expanded=True)
+            uploaded_file = expander.file_uploader(
+                "Select data for analysis", label_visibility="collapsed"
             )
+            if uploaded_file is not None:
+                st.session_state.analysis_data = pd.read_csv(uploaded_file)
+                analysis_table = expander.table(st.session_state.analysis_data)
+        col1, col2 = st.columns(2, vertical_alignment="top")
+        select_data = col1.selectbox(
+            "Get data from",
+            options=["Use extracted data", "Upload data"],
+            key="select_data_for_analysis",
+        )
+        max_words = col1.number_input("Maximum number of words", value=70)
+        row_col1, row_col2 = col1.columns(2, vertical_alignment="top")
+        background_color = row_col1.color_picker("Background color")
+        color_maps = list(colormaps)
+        color_map = row_col2.selectbox("Color scheme", options=color_maps)
+        select_columns = col2.text_input("Select data from columns")
+        regex_patterns = col2.text_input("Phrases/patterns to remove")
+        fixed_words = col2.text_input("Fixed words")
+        word_cloud_generate_btn = st.button(
+            "Generate word cloud", use_container_width=True, type="primary"
+        )
         if word_cloud_generate_btn:
-            word_cloud_img = tab1.image(
-                "./results/word_cloud/wordcloud_0b4cb6d5-f3e7-447d-bc37-349ea3f0c51e.png",
+            if select_data == "Use extracted result":
+                data = st.session_state.extracted_result_data
+            else:
+                data = st.session_state.analysis_data
+            word_cloud_img = generate_cloud_handler(
+                data=data,
+                color_map=color_map,
+                max_words=max_words,
+                columns=select_columns,
+                regex_patterns=regex_patterns,
+                fixed_words=fixed_words,
+                background_color=background_color,
+            )
+            st.image(
+                word_cloud_img,
                 use_column_width="auto",
             )
 

@@ -9,6 +9,7 @@ from backend.extractor.task.container_extractor import ContainerExtractor
 from backend.extractor.task.single_path_extractor import SinglePathElementExtractor
 from backend.fetcher.fetcher import fetch_multiple_pages
 from backend.logger import get_logger
+from backend.extractor.task.nlp_tasks import create_word_cloud
 
 logger = get_logger()
 
@@ -39,6 +40,13 @@ def init_fetch_state(state):
 def init_extract_state(state):
     if "extract_method" not in state:
         state.extract_method = [""]
+    if "extracted_result_dataframe" not in state:
+        state.extracted_result_dataframe = pd.DataFrame()
+
+
+def init_downstream_analysis_state(state):
+    if "analysis_data" not in state:
+        state.analysis_data = pd.DataFrame()
 
 
 def clear_fetch_inputs(state):
@@ -149,3 +157,32 @@ async def container_extract(html_list, contents_to_extract, batch):
     print(structured_contents)
     df = pd.DataFrame(structured_contents)
     return df
+
+
+def generate_cloud_handler(
+    data, color_map, max_words, columns, regex_patterns, fixed_words, background_color
+):
+    data.fillna("")
+    dictionaries = data.to_dict("records")
+    selected_columns = columns.split(",")
+    selected_columns = (
+        [col.strip() for col in selected_columns] if columns != "" else []
+    )
+    regex_list = regex_patterns.split(",")
+    regex_list = (
+        [pattern.strip() for pattern in regex_list] if regex_patterns != "" else []
+    )
+    fixed_words_list = fixed_words.split(",")
+    fixed_words_list = (
+        [word.strip() for word in fixed_words_list] if fixed_words != "" else []
+    )
+    return create_word_cloud(
+        dictionaries,
+        color_map,
+        background_color,
+        max_words,
+        selected_columns,
+        regex_list,
+        fixed_words_list,
+        save=True,
+    )
