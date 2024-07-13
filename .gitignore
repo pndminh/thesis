@@ -2,5 +2,8 @@ firebase_cred.json
 .env
 __pycache__
 .github
-.tests
-.tests-examples
+/tests
+/tests-examples
+/presentation_demo
+/results
+/test-results

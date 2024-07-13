@@ -80,6 +80,7 @@ async def scroll_page(page, max_duration):
         if elapsed_time > max_duration:
             print(f"Reached maximum scroll duration of {max_duration} seconds.")
             await page.evaluate("clearInterval(intervalID)")
+            break
         if not prev_height:
             prev_height = curr_height
             await asyncio.sleep(15)
@@ -163,8 +164,9 @@ async def fetch_dynamic_page(
             await scroll_page(page, max_duration=max_duration)
         if expand:
             await find_expand_button(page, expand_button_text)
-
+        logger.info("Getting html content")
         html = await page.content()
+        logger.info("Closing browser")
         await browser.close()
     return html
 
