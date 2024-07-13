@@ -1,9 +1,12 @@
 import os
 import sys
 import time
+import pandas as pd
 import streamlit as st
 
-sys.path.append(",/")
+sys.path.append("./")
+from backend.extractor.task.container_extractor import ContainerExtractor
+from backend.extractor.task.single_path_extractor import SinglePathElementExtractor
 from backend.fetcher.fetcher import fetch_multiple_pages
 from backend.logger import get_logger
 
@@ -45,6 +48,19 @@ def clear_fetch_inputs(state):
     state.expand_button_click = ""
 
 
+def clear_extract_settings(state):
+    state["label"] = ""
+    state.extract_identifier = []
+    state.example_content = ""
+    state.contents_to_extract = {}
+
+
+def clear_extract_inputs(state):
+    state.label = ""
+    state.extract_identifier = []
+    state["example_content"] = ""
+
+
 async def fetch(url, fetch_method, dynamic_fetch_options):
     # dynamic_fetch_options = {"infinite_scroll": 0, "expand_button_text": "", "pagination": 0}
     static_fetch = True if fetch_method == "Static fetch" else False
@@ -80,9 +96,9 @@ def write_html_files(html_list):
             f.write(html)
 
 
-def add_data(label, example_content, extract_methods, contents_to_extract: dict):
-    for extract_method in extract_methods:
-        extract_method = (
+def add_data(label, example_content, extract_methods, contents_to_extract):
+    for i, extract_method in enumerate(extract_methods):
+        extract_methods[i] = (
             extract_method.replace(
                 "Select ",
                 "",
@@ -94,13 +110,8 @@ def add_data(label, example_content, extract_methods, contents_to_extract: dict)
         # print(extract_method)
 
     if label in contents_to_extract.keys():
-        print(
-            contents_to_extract[label][0],
-            type(contents_to_extract[label][0]),
-        )
-        contents_to_extract[label].append((example_content, extract_method))
+        contents_to_extract[label].append((example_content, extract_methods))
     else:
         contents_to_extract[label] = []
-        contents_to_extract[label].append((example_content, extract_method))
-    print(contents_to_extract)
+        contents_to_extract[label].append((example_content, extract_methods))
     return contents_to_extract

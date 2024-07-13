@@ -1,4 +1,5 @@
 import asyncio
+import json
 import time
 import pandas as pd
 import streamlit as st
@@ -10,6 +11,9 @@ import sys
 sys.path.append("./")
 from backend.logger import get_logger
 from frontend.pages.utils import (
+    add_data,
+    clear_extract_inputs,
+    clear_extract_settings,
     clear_fetch_inputs,
     fetch,
     init_fetch_state,
@@ -18,8 +22,8 @@ from frontend.pages.utils import (
 
 if "html" not in st.session_state:
     st.session_state.html = []
-if "content_to_extract" not in st.session_state:
-    st.session_state.content_to_extract = {}
+if "contents_to_extract" not in st.session_state:
+    st.session_state.contents_to_extract = {}
 
 logger = get_logger()
 
@@ -121,7 +125,7 @@ def save_fetch_result():
 async def extract_module():
     with st.container():
         st.title("Extract Module")
-        col1, col2 = st.columns(2)
+        col1, col2 = st.columns([0.5, 0.5])
         extract_method = col1.selectbox(
             "Select extract method",
             options=["Direct Path Extract", "Container Extract"],
@@ -134,20 +138,45 @@ async def extract_module():
             ["Select by class", "Select by ID"],
             key="extract_identifier",
         )
-        code = """extract_item = {
-            "label": "example_content",
-            "label2":"example_content2",
-        }
-        """
+        if not st.session_state.contents_to_extract:
+            code = """extract_item = 
+        {"label": ("example_content", ["identifier"])}
+                """
+        else:
+            code = f"extract_item = {json.dumps(st.session_state.contents_to_extract, indent=2)}"
+
         extract_content_preview = col2.code(
             code,
             language="python",
         )
+        batch = col2.checkbox("Extract from all HTML in list", value=False, key="batch")
+
         col1, col2, col3 = st.columns(3)
-        reset_btn = col1.button("Clear extract settings", use_container_width=True)
-        add_content_btn = col2.button(
-            "Add contents to extract", use_container_width=True
+        reset_btn = col1.button(
+            "Clear extract settings",
+            use_container_width=True,
+            on_click=clear_extract_settings,
+            args=[st.session_state],
         )
+
+        add_content_btn = col2.button(
+            "Add contents to extract",
+            use_container_width=True,
+        )
+        if add_content_btn:
+            st.session_state.contents_to_extract = add_data(
+                label,
+                example_content,
+                extract_identifier,
+                st.session_state.contents_to_extract,
+            )
+            code = st.session_state.contents_to_extract
+            extract_content_preview.code(
+                f"extract_item = {json.dumps(st.session_state.contents_to_extract, indent=2)}",
+                language="python",
+            )
+
+            print(st.session_state.contents_to_extract)
         extract_btn = col3.button("Extract", use_container_width=True, type="primary")
         if extract_btn:
             result_table = st.table(pd.DataFrame())
