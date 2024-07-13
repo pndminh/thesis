@@ -56,8 +56,8 @@ def clear_extract_settings(state):
 
 
 def clear_extract_inputs(state):
-    state.label = ""
-    state.extract_identifier = []
+    state["label"] = ""
+    state["extract_identifier"] = []
     state["example_content"] = ""
 
 
@@ -115,3 +115,37 @@ def add_data(label, example_content, extract_methods, contents_to_extract):
         contents_to_extract[label] = []
         contents_to_extract[label].append((example_content, extract_methods))
     return contents_to_extract
+
+
+async def handle_extract(html_list, contents_to_extract, batch, extract_type):
+    if "Direct Path Extract" in extract_type:
+        res = await single_path_extract(html_list, contents_to_extract, batch)
+    else:
+        res = await container_extract(html_list, contents_to_extract, batch)
+    return res
+
+
+async def single_path_extract(html_list, contents_to_extract, batch):
+    html = html_list[0]
+    extractor = SinglePathElementExtractor(contents_to_extract, html, html_list)
+    if batch:
+        await extractor.prepare_single_website_extract_template()
+        res = await extractor.extract_from_multiple_websites(html_list)
+    else:
+        res = await extractor.single_element_extract_run_task()
+    df = pd.DataFrame(res)
+    return df
+
+
+async def container_extract(html_list, contents_to_extract, batch):
+    html = html_list[0]
+    extractor = ContainerExtractor(contents_to_extract, html, html_list)
+    if batch:
+        await extractor.prepare_single_website_extract_template()
+        await extractor.search_for_containers()
+        structured_contents = await extractor.extract_from_multiple_websites(html_list)
+    else:
+        structured_contents = await extractor.container_extract_run_task()
+    print(structured_contents)
+    df = pd.DataFrame(structured_contents)
+    return df

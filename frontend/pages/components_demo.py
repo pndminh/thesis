@@ -16,6 +16,7 @@ from frontend.pages.utils import (
     clear_extract_settings,
     clear_fetch_inputs,
     fetch,
+    handle_extract,
     init_fetch_state,
     write_html_files,
 )
@@ -143,14 +144,15 @@ async def extract_module():
         {"label": ("example_content", ["identifier"])}
                 """
         else:
-            code = f"extract_item = {json.dumps(st.session_state.contents_to_extract, indent=2)}"
+            code = f"extract_item = {json.dumps(st.session_state.contents_to_extract, indent=2, ensure_ascii=False)}"
 
         extract_content_preview = col2.code(
             code,
             language="python",
         )
-        batch = col2.checkbox("Extract from all HTML in list", value=False, key="batch")
-
+        batch = col2.checkbox(
+            "Extract from all fetched HTMLs", value=False, key="batch"
+        )
         col1, col2, col3 = st.columns(3)
         reset_btn = col1.button(
             "Clear extract settings",
@@ -172,14 +174,19 @@ async def extract_module():
             )
             code = st.session_state.contents_to_extract
             extract_content_preview.code(
-                f"extract_item = {json.dumps(st.session_state.contents_to_extract, indent=2)}",
+                f"extract_item = {json.dumps(st.session_state.contents_to_extract, indent=2, ensure_ascii=False)}",
                 language="python",
             )
 
-            print(st.session_state.contents_to_extract)
         extract_btn = col3.button("Extract", use_container_width=True, type="primary")
         if extract_btn:
-            result_table = st.table(pd.DataFrame())
+            result = await handle_extract(
+                st.session_state.html,
+                st.session_state.contents_to_extract,
+                batch,
+                extract_method,
+            )
+            result_table = st.table(result)
             col1, col2 = st.columns(2)
             get_csv_btn = col1.button("Save as CSV", use_container_width=True)
             get_json_btn = col2.button("Save as JSON", use_container_width=True)

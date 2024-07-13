@@ -12,7 +12,7 @@ logger = get_logger()
 
 
 def clean_html(soup, tags=[], use_default_tags=True):
-    default_tags = ["script", "style", "link", "nav", "meta", "title"]
+    default_tags = ["script", "style", "link", "nav", "meta", "head"]
     tags += [*default_tags] if use_default_tags or len(tags) == 0 else tags
     """Receives a list of elements to remove from the soup."""
     for data in soup(tags):
@@ -89,7 +89,6 @@ def prepare_html(html, clean_tags=[]):
     "clean and parse html to prepare it for extraction"
     if type(html) is str:
         soup = parse_html(html)
-        print(soup)
     else:
         soup = html
     soup = clean_html(soup, clean_tags)
