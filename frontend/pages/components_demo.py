@@ -8,7 +8,9 @@ from matplotlib import colormaps
 import os
 import sys
 
+
 sys.path.append("./")
+from frontend.utils import get_page_name
 from backend.logger import get_logger
 from frontend.pages.utils import (
     add_data,
@@ -188,8 +190,21 @@ async def extract_module():
             )
             result_table = st.table(result)
             col1, col2 = st.columns(2)
-            get_csv_btn = col1.button("Save as CSV", use_container_width=True)
-            get_json_btn = col2.button("Save as JSON", use_container_width=True)
+            page_name = get_page_name(st.session_state.url_input)
+            get_csv_btn = col1.download_button(
+                "Save as CSV",
+                result.to_csv().encode("utf-8"),
+                f"{page_name}.csv",
+                mime="text/csv",
+                use_container_width=True,
+            )
+            get_json_btn = col2.download_button(
+                "Save as JSON",
+                result.to_json().encode("utf-8"),
+                f"{page_name}.json",
+                mime="application/json",
+                use_container_width=True,
+            )
 
 
 async def downstream_analysis():
