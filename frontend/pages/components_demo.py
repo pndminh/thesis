@@ -22,6 +22,8 @@ from frontend.pages.utils import (
     fetch,
     generate_cloud_handler,
     handle_extract,
+    init_downstream_analysis_state,
+    init_extract_state,
     init_fetch_state,
     write_html_files,
 )
@@ -98,9 +100,6 @@ async def fetch_module():
             type="primary",
             use_container_width=True,
         )
-    result_container = st.container(height=200)
-    with result_container:
-        st.markdown("###### Fetch Result")
 
     if fetch_btn:
         st.toast("Fetching HTML...", icon="💬")
@@ -111,6 +110,9 @@ async def fetch_module():
         st.session_state.html = html
         logger.info("Fetch done, saving to session state")
         st.toast("Fetched!", icon="🎉")
+        result_container = st.container(height=200)
+        with result_container:
+            st.markdown("###### Fetch Result")
         try:
             st.session_state.parsed_html, paths = prepare_html_ui(
                 st.session_state.html[0]
@@ -204,7 +206,13 @@ async def extract_module():
                 extract_method,
             )
             st.session_state.extracted_result_dataframe = result
-            result_table = st.table(result)
+            result_table = st.dataframe(
+                result,
+                height=200,
+                use_container_width=True,
+                hide_index=True,
+                on_select="ignore",
+            )
             col1, col2 = st.columns(2)
             page_name = get_page_name(st.session_state.url_input)
             get_csv_btn = col1.download_button(
@@ -229,14 +237,20 @@ async def downstream_analysis():
         tab1, tab2 = st.tabs(["Word Cloud Generator", "LLM Analysis"])
         tab1.header("Word Cloud Generator")
         if st.session_state.get("select_data_for_analysis") == "Upload data":
-            expander = st.expander("Upload data", expanded=True)
+            expander = tab1.expander("Upload data", expanded=True)
             uploaded_file = expander.file_uploader(
                 "Select data for analysis", label_visibility="collapsed"
             )
             if uploaded_file is not None:
                 st.session_state.analysis_data = pd.read_csv(uploaded_file)
-                analysis_table = expander.table(st.session_state.analysis_data)
-        col1, col2 = st.columns(2, vertical_alignment="top")
+                analysis_table = expander.dataframe(
+                    st.session_state.analysis_data,
+                    height=200,
+                    use_container_width=True,
+                    hide_index=True,
+                    on_select="ignore",
+                )
+        col1, col2 = tab1.columns(2, vertical_alignment="top")
         select_data = col1.selectbox(
             "Get data from",
             options=["Use extracted data", "Upload data"],
@@ -250,14 +264,15 @@ async def downstream_analysis():
         select_columns = col2.text_input("Select data from columns")
         regex_patterns = col2.text_input("Phrases/patterns to remove")
         fixed_words = col2.text_input("Fixed words")
-        word_cloud_generate_btn = st.button(
+        word_cloud_generate_btn = tab1.button(
             "Generate word cloud", use_container_width=True, type="primary"
         )
         if word_cloud_generate_btn:
-            if select_data == "Use extracted result":
-                data = st.session_state.extracted_result_data
+            if select_data == "Use extracted data":
+                data = st.session_state.extracted_result_dataframe
             else:
                 data = st.session_state.analysis_data
+            print(data)
             word_cloud_img = generate_cloud_handler(
                 data=data,
                 color_map=color_map,
@@ -267,7 +282,7 @@ async def downstream_analysis():
                 fixed_words=fixed_words,
                 background_color=background_color,
             )
-            st.image(
+            tab1.image(
                 word_cloud_img,
                 use_column_width="auto",
             )
@@ -293,4 +308,6 @@ async def page():
 
 
 init_fetch_state(st.session_state)
+init_extract_state(st.session_state)
+init_downstream_analysis_state(st.session_state)
 asyncio.run(page())

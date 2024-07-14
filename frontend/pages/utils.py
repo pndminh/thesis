@@ -40,13 +40,13 @@ def init_fetch_state(state):
 def init_extract_state(state):
     if "extract_method" not in state:
         state.extract_method = [""]
-    if "extracted_result_dataframe" not in state:
-        state.extracted_result_dataframe = pd.DataFrame()
 
 
 def init_downstream_analysis_state(state):
     if "analysis_data" not in state:
         state.analysis_data = pd.DataFrame()
+    if "select_data_for_analysis" not in state:
+        state.select_data_for_analysis = "Use extracted data"
 
 
 def clear_fetch_inputs(state):
