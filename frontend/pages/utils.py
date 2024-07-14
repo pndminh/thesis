@@ -54,6 +54,7 @@ def clear_fetch_inputs(state):
     state.fetch_method = "Static fetch"
     state.scroll_timeout = 10
     state.expand_button_click = ""
+    state.parsed_paths = ""
 
 
 def clear_extract_settings(state):

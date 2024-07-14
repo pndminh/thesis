@@ -96,6 +96,18 @@ def prepare_html(html, clean_tags=[]):
     return soup
 
 
+def prepare_html_ui(html, clean_tags=[]):
+    if type(html) is str:
+        soup = parse_html(html)
+        logger.info("Parsing html")
+    else:
+        soup = html
+    soup = clean_html(soup, clean_tags)
+    logger.info("Traversing html")
+    soup, paths = traverse_ui(soup)
+    return soup, paths
+
+
 def is_duplicate(new_path, existing_paths):
     for path in existing_paths:
         if path in new_path:
@@ -160,3 +172,44 @@ def save_crawled_data_to_json(data, file_path):
     data.to_json(f"{file_path}")
     # with open(f"{file_name}", "w") as outfile:
     #     outfile.write(json)
+
+
+def traverse_ui(current_tag, current_path=None, paths=None):
+    """Traverse an html soup, starting from the first tag of the soup to the leaf node (navigable string).
+    Remove all paths that do not lead to a navigable string. Return a modified version of the beautiful soup tree
+    and a list of paths.
+    """
+    if current_path is None:
+        current_path = [current_tag.name]
+    if paths is None:
+        paths = []
+
+    children_to_traverse = []
+    # Traverse all child tags of the current tag
+    for child_tag in current_tag.find_all(recursive=False):
+        # If cannot find any children, we are at the leaf node
+        if not child_tag.find():
+            # If we could find a string at the leaf node, store it in the paths list
+            if (
+                child_tag.find(string=True)
+                and not child_tag.find(string=True).strip() == ""
+            ):
+                string_value = child_tag.find(string=True).strip()
+                path = " -> ".join(
+                    current_path
+                    + [child_tag.name, string_value.replace("\n", "").strip()]
+                )
+                paths.append(path)
+            else:
+                child_tag.decompose()
+        else:
+            children_to_traverse.append(child_tag)
+
+    for child_tag in children_to_traverse:
+        traverse_ui(
+            current_tag=child_tag,
+            current_path=current_path + [child_tag.name],
+            paths=paths,
+        )
+
+    return current_tag, paths
