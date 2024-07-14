@@ -1,6 +1,7 @@
 import asyncio
 import json
 import time
+from bs4 import BeautifulSoup
 import pandas as pd
 import streamlit as st
 from matplotlib import colormaps
@@ -10,6 +11,7 @@ import sys
 
 
 sys.path.append("./")
+from backend.extractor.utils import prepare_html_ui
 from frontend.utils import get_page_name
 from backend.logger import get_logger
 from frontend.pages.utils import (
@@ -28,7 +30,10 @@ if "html" not in st.session_state:
     st.session_state.html = []
 if "contents_to_extract" not in st.session_state:
     st.session_state.contents_to_extract = {}
-
+if "parsed_html" not in st.session_state:
+    st.session_state.parsed_html = BeautifulSoup()
+if "parsed_paths" not in st.session_state:
+    st.session_state.parsed_paths = ""
 logger = get_logger()
 
 
@@ -95,8 +100,8 @@ async def fetch_module():
         )
     result_container = st.container(height=200)
     with result_container:
-        col1, col2 = st.columns([4, 1])
-        col1.markdown("###### Fetch Result")
+        st.markdown("###### Fetch Result")
+
     if fetch_btn:
         st.toast("Fetching HTML...", icon="💬")
         print(url_input, fetch_method, st.session_state.dynamic_fetch_options)
@@ -106,7 +111,16 @@ async def fetch_module():
         st.session_state.html = html
         logger.info("Fetch done, saving to session state")
         st.toast("Fetched!", icon="🎉")
-        save_fetch_result()
+        try:
+            st.session_state.parsed_html, paths = prepare_html_ui(
+                st.session_state.html[0]
+            )
+            st.session_state.parsed_paths = "\n".join(paths)
+            result_container.text(st.session_state.get("parsed_paths"))
+        except Exception as e:
+            logger.info(f"An error occurred while parsing HTML: {e}")
+            result_container.error("Error parsing HTML")
+        # save_fetch_result()
         # try:
         #     result_container.code(html[0], "html")
         # except:
