@@ -15,10 +15,12 @@ from backend.extractor.utils import prepare_html_ui
 from frontend.utils import get_page_name
 from backend.logger import get_logger
 from frontend.pages.utils import (
+    add_classification_task,
     add_data,
     clear_extract_inputs,
     clear_extract_settings,
     clear_fetch_inputs,
+    clear_llm_tasks_inputs,
     fetch,
     generate_cloud_handler,
     handle_extract,
@@ -36,6 +38,8 @@ if "parsed_html" not in st.session_state:
     st.session_state.parsed_html = BeautifulSoup()
 if "parsed_paths" not in st.session_state:
     st.session_state.parsed_paths = ""
+if "llm_tasks" not in st.session_state:
+    st.session_state.llm_tasks = {}
 logger = get_logger()
 
 
@@ -289,13 +293,31 @@ async def downstream_analysis():
 
         tab2.header("LLM analysis")
         col1, col2 = tab2.columns(2)
-        classification_label = col1.text_input("Task name")
-        classification_text = col1.text_area("Task description")
-        code = """task_preview = {"task": "description"}"""
-        task_preview = col2.code(code, "python")
+        classification_label = col1.text_input("Task name", key="classification_label")
+        classification_text = col1.text_area(
+            "Task description", key="classification_text"
+        )
+        if not st.session_state.llm_tasks:
+            code = """llm_tasks = {"task": "description"}"""
+        else:
+            code = f"""llm_tasks = {json.dumps(st.session_state.llm_tasks, indent=2, ensure_ascii=False)}"""
+        llm_tasks_preview = col2.code(code, "python")
         col1, col2, col3 = tab2.columns(3)
-        reset_btn = col1.button("Clear tasks", use_container_width=True)
+        reset_btn = col1.button(
+            "Clear tasks",
+            use_container_width=True,
+            on_click=clear_llm_tasks_inputs,
+            args=[st.session_state],
+        )
         add_task_btn = col2.button("Add task", use_container_width=True)
+        if add_task_btn:
+            st.session_state.llm_tasks = add_classification_task(
+                classification_label, classification_text, st.session_state.llm_tasks
+            )
+            llm_tasks_preview.code(
+                f"llm_tasks = {json.dumps(st.session_state.llm_tasks, indent=2, ensure_ascii=False)}"
+            )
+            print(st.session_state.llm_tasks)
         analyze_btn = col3.button("Analyze", use_container_width=True, type="primary")
         if analyze_btn:
             result_table = st.table(pd.DataFrame())

@@ -40,6 +40,8 @@ def init_fetch_state(state):
 def init_extract_state(state):
     if "extract_method" not in state:
         state.extract_method = [""]
+    if "extracted_result_dataframe" not in state:
+        state.extracted_result_dataframe = pd.DataFrame()
 
 
 def init_downstream_analysis_state(state):
@@ -62,6 +64,12 @@ def clear_extract_settings(state):
     state.extract_identifier = []
     state.example_content = ""
     state.contents_to_extract = {}
+
+
+def clear_llm_tasks_inputs(state):
+    state["classification_label"] = ""
+    state["classification_text"] = ""
+    state.llm_tasks = {}
 
 
 def clear_extract_inputs(state):
@@ -187,3 +195,8 @@ def generate_cloud_handler(
         fixed_words_list,
         save=True,
     )
+
+
+def add_classification_task(task_name, task_description, llm_tasks):
+    llm_tasks[task_name] = task_description
+    return llm_tasks
