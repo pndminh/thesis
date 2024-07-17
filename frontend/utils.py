@@ -12,8 +12,11 @@ from backend.extractor.task.container_extractor import ContainerExtractor
 from backend.extractor.task.single_path_extractor import SinglePathElementExtractor
 from backend.fetcher.fetcher import fetch_multiple_pages, fetch_page
 from backend.extractor.utils import save_crawled_data_to_csv, save_crawled_data_to_json
-from backend.extractor.task.nlp_tasks import create_word_cloud
-from backend.extractor.task.llm_utils import combine_res, llm_extract_task
+from backend.extractor.task.nlp_tasks import (
+    combine_res,
+    create_word_cloud,
+    llm_extract_task,
+)
 
 
 async def get_url(

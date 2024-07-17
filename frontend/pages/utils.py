@@ -40,6 +40,8 @@ def init_fetch_state(state):
             "expand_button_click": "",
             "pagination": 0,
         }
+    if "fetched" not in st.session_state:
+        st.session_state.fetched = False
 
 
 def init_extract_state(state):
@@ -47,6 +49,8 @@ def init_extract_state(state):
         state.extract_method = "Direct Path Extract"
     if "extracted_result_dataframe" not in state:
         state.extracted_result_dataframe = pd.DataFrame()
+    if "extracted" not in state:
+        state.extracted = False
 
 
 def init_downstream_analysis_state(state):
@@ -56,6 +60,12 @@ def init_downstream_analysis_state(state):
         state.select_data_for_analysis = "Use extracted data"
     if "llm_result" not in state:
         state.llm_result = pd.DataFrame()
+    if "word_cloud_generated" not in state:
+        state.word_cloud_generated = False
+    if "llm_analyzed" not in state:
+        state.llm_analyzed = False
+    if "word_cloud_img" not in state:
+        state.word_cloud_img = ""
 
 
 def clear_fetch_inputs(state):
@@ -64,6 +74,7 @@ def clear_fetch_inputs(state):
     state.scroll_timeout = 10
     state.expand_button_click = ""
     state.parsed_paths = ""
+    state.fetched = False
 
 
 def clear_extract_settings(state):
@@ -71,12 +82,14 @@ def clear_extract_settings(state):
     state.extract_identifier = []
     state.example_content = ""
     state.contents_to_extract = {}
+    state.extracted = False
 
 
 def clear_llm_tasks_inputs(state):
     state["classification_label"] = ""
     state["classification_text"] = ""
     state.llm_tasks = {}
+    state.llm_analyzed = False
 
 
 def clear_extract_inputs(state):

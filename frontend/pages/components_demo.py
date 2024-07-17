@@ -45,6 +45,22 @@ if "llm_tasks" not in st.session_state:
 logger = get_logger()
 
 
+def click_fetch_btn():
+    st.session_state.fetched = True
+
+
+def click_extract_btn():
+    st.session_state.extracted = True
+
+
+def click_cloud_generate_btn():
+    st.session_state.word_cloud_generated = True
+
+
+def click_llm_analyze_btn():
+    st.session_state.llm_analyzed = True
+
+
 async def fetch_module():
     with st.container():
         st.markdown("# Fetch Module")
@@ -105,34 +121,38 @@ async def fetch_module():
             "Fetch",
             type="primary",
             use_container_width=True,
+            on_click=click_fetch_btn,
         )
-
-    if fetch_btn:
-        st.toast("Fetching HTML...", icon="💬")
-        print(url_input, fetch_method, st.session_state.dynamic_fetch_options)
-        html = await fetch(
-            url_input, fetch_method, st.session_state.dynamic_fetch_options
-        )
-        st.session_state.html = html
-        logger.info("Fetch done, saving to session state")
-        st.toast("Fetched!", icon="🎉")
         result_container = st.container(height=200)
-        with result_container:
-            st.markdown("###### Fetch Result")
-        try:
-            st.session_state.parsed_html, paths = prepare_html_ui(
-                st.session_state.html[0]
+        result_container.markdown("###### Fetch Result")
+
+        if fetch_btn:
+            st.toast("Fetching HTML...", icon="💬")
+            print(url_input, fetch_method, st.session_state.dynamic_fetch_options)
+            html = await fetch(
+                url_input, fetch_method, st.session_state.dynamic_fetch_options
             )
-            st.session_state.parsed_paths = "\n".join(paths)
-            result_container.text(st.session_state.get("parsed_paths"))
-        except Exception as e:
-            logger.info(f"An error occurred while parsing HTML: {e}")
-            result_container.error("Error parsing HTML")
-        # save_fetch_result()
-        # try:
-        #     result_container.code(html[0], "html")
-        # except:
-        #     logger.info("An error occurred while displaying your result preview")
+            st.session_state.html = html
+            logger.info("Fetch done, saving to session state")
+            st.toast("Fetched!", icon="🎉")
+            try:
+                st.session_state.parsed_html, paths = prepare_html_ui(
+                    st.session_state.html[0]
+                )
+                st.session_state.parsed_paths = "\n".join(paths)
+            except Exception as e:
+                logger.info(f"An error occurred while parsing HTML: {e}")
+
+        if st.session_state.fetched:
+            if st.session_state.parsed_paths != "":
+                result_container.text(st.session_state.get("parsed_paths"))
+            else:
+                result_container.error("Error parsing HTML")
+            # save_fetch_result()
+            # try:
+            #     result_container.code(html[0], "html")
+            # except:
+            #     logger.info("An error occurred while displaying your result preview")
 
 
 @st.experimental_dialog("Save fetch result")
@@ -205,8 +225,13 @@ async def extract_module():
                 language="python",
             )
 
-        extract_btn = col3.button("Extract", use_container_width=True, type="primary")
-        if extract_btn:
+        extract_btn = col3.button(
+            "Extract",
+            use_container_width=True,
+            type="primary",
+            on_click=click_extract_btn,
+        )
+        if st.session_state.extracted:
             result = await handle_extract(
                 st.session_state.html,
                 st.session_state.contents_to_extract,
@@ -271,15 +296,17 @@ async def downstream_analysis():
         regex_patterns = col2.text_input("Phrases/patterns to remove")
         fixed_words = col2.text_input("Fixed words")
         word_cloud_generate_btn = st.button(
-            "Generate word cloud", use_container_width=True, type="primary"
+            "Generate word cloud",
+            use_container_width=True,
+            type="primary",
+            on_click=click_cloud_generate_btn,
         )
         if word_cloud_generate_btn:
             if select_data == "Use extracted data":
                 data = st.session_state.extracted_result_dataframe
             else:
                 data = st.session_state.analysis_data
-
-            word_cloud_img = generate_cloud_handler(
+            st.session_state.word_cloud_img = generate_cloud_handler(
                 data=data,
                 color_map=color_map,
                 max_words=max_words,
@@ -288,10 +315,13 @@ async def downstream_analysis():
                 fixed_words=fixed_words,
                 background_color=background_color,
             )
-            st.image(
-                word_cloud_img,
-                use_column_width="auto",
-            )
+
+        if st.session_state.word_cloud_generated:
+            if st.session_state.word_cloud_img != "":
+                st.image(
+                    st.session_state.word_cloud_img,
+                    use_column_width="auto",
+                )
     with st.expander("### LLM analysis"):
         st.header("LLM analysis")
         col1, col2 = st.columns(2)
@@ -321,8 +351,13 @@ async def downstream_analysis():
                 f"llm_tasks = {json.dumps(st.session_state.llm_tasks, indent=2, ensure_ascii=False)}"
             )
             print(st.session_state.llm_tasks)
-        analyze_btn = col3.button("Analyze", use_container_width=True, type="primary")
-        if analyze_btn:
+        analyze_btn = col3.button(
+            "Analyze",
+            use_container_width=True,
+            type="primary",
+            on_click=click_llm_analyze_btn,
+        )
+        if st.session_state.llm_analyzed:
             if select_data == "Use extracted data":
                 data = st.session_state.extracted_result_dataframe
             else:
@@ -336,13 +371,12 @@ async def downstream_analysis():
 
 
 async def page():
-    await fetch_module()
-    await extract_module()
-    await downstream_analysis()
-
     init_fetch_state(st.session_state)
     init_extract_state(st.session_state)
     init_downstream_analysis_state(st.session_state)
+    await fetch_module()
+    await extract_module()
+    await downstream_analysis()
 
 
 asyncio.run(page())

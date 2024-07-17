@@ -89,7 +89,7 @@ def prepare_word_cloud(
 ):
     logger.info("Identifying language")
     test = "".join([value for value in data[0].values()])
-    lang_detect = detect(test)
+    lang_detect = detect(str.encode(test))
     if lang_detect == "vi":
         with open(
             "backend/llm/vietnamese_stopwords.txt", "r", encoding="utf-8"
