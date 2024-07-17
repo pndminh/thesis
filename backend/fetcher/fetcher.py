@@ -104,10 +104,10 @@ async def click_button(button):
         return False
 
 
-async def find_expand_button(page, button_text=None):
+async def find_expand_button(page, button_text=""):
     button_text_string = (
         r"(Expand|See more|Xem thêm|Hiển thị)"
-        if button_text is None
+        if button_text == ""
         else rf"""({"|".join(button_text)})"""
     )
     logger.info("Locating 'See more' buttons")

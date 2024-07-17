@@ -76,7 +76,7 @@ async def fetch_module():
                 [0.4, 0.6], vertical_alignment="top"
             )
             infinite_scroll = col1.checkbox("Infinite Scroll", key="infinite_scroll")
-            pagination = col1.checkbox("Pagination", key="pagination")
+            # pagination = col1.checkbox("Pagination", key="pagination")
             expand_button_click = col1.checkbox(
                 "Click expand buttons", key="expand_button"
             )
@@ -87,14 +87,14 @@ async def fetch_module():
                 value=10,
                 disabled=not (infinite_scroll),
             )
-            max_pages = col2.slider(
-                "Max number of fetched page",
-                key="max_pages",
-                min_value=2,
-                max_value=20,
-                value=5,
-                disabled=not (pagination),
-            )
+            # max_pages = col2.slider(
+            #     "Max number of fetched page",
+            #     key="max_pages",
+            #     min_value=2,
+            #     max_value=20,
+            #     value=5,
+            #     disabled=not (pagination),
+            # )
             expand_text = col2.text_input(
                 label="Expand button texts",
                 key="expand_button_text",
@@ -108,8 +108,8 @@ async def fetch_module():
                 st.session_state.dynamic_fetch_options["expand_button_click"] = (
                     expand_text
                 )
-            if pagination:
-                st.session_state.dynamic_fetch_options["pagination"] = max_pages
+            # if pagination:
+            #     st.session_state.dynamic_fetch_options["pagination"] = max_pages
         col1, col2 = st.columns(2)
         clear_btn = col1.button(
             "Clear fetch",
@@ -231,7 +231,7 @@ async def extract_module():
             type="primary",
             on_click=click_extract_btn,
         )
-        if st.session_state.extracted:
+        if extract_btn:
             result = await handle_extract(
                 st.session_state.html,
                 st.session_state.contents_to_extract,
@@ -239,29 +239,35 @@ async def extract_module():
                 extract_method,
             )
             st.session_state.extracted_result_dataframe = result
-            result_table = st.dataframe(
-                result,
-                height=200,
-                use_container_width=True,
-                hide_index=True,
-                on_select="ignore",
-            )
-            col1, col2 = st.columns(2)
-            page_name = get_page_name(st.session_state.url_input)
-            get_csv_btn = col1.download_button(
-                "Save as CSV",
-                result.to_csv().encode("utf-8"),
-                f"{page_name}.csv",
-                mime="text/csv",
-                use_container_width=True,
-            )
-            get_json_btn = col2.download_button(
-                "Save as JSON",
-                result.to_json().encode("utf-8"),
-                f"{page_name}.json",
-                mime="application/json",
-                use_container_width=True,
-            )
+        if st.session_state.extracted:
+            if not st.session_state.extracted_result_dataframe.empty:
+                result_table = st.dataframe(
+                    st.session_state.extracted_result_dataframe,
+                    height=200,
+                    use_container_width=True,
+                    hide_index=True,
+                    on_select="ignore",
+                )
+                col1, col2 = st.columns(2)
+                page_name = get_page_name(st.session_state.url_input)
+                get_csv_btn = col1.download_button(
+                    "Save as CSV",
+                    st.session_state.extracted_result_dataframe.to_csv().encode(
+                        "utf-8"
+                    ),
+                    f"{page_name}.csv",
+                    mime="text/csv",
+                    use_container_width=True,
+                )
+                get_json_btn = col2.download_button(
+                    "Save as JSON",
+                    st.session_state.extracted_result_dataframe.to_json().encode(
+                        "utf-8"
+                    ),
+                    f"{page_name}.json",
+                    mime="application/json",
+                    use_container_width=True,
+                )
 
 
 async def downstream_analysis():
@@ -357,7 +363,7 @@ async def downstream_analysis():
             type="primary",
             on_click=click_llm_analyze_btn,
         )
-        if st.session_state.llm_analyzed:
+        if analyze_btn:
             if select_data == "Use extracted data":
                 data = st.session_state.extracted_result_dataframe
             else:
@@ -367,7 +373,9 @@ async def downstream_analysis():
                 data, llm_tasks=st.session_state.llm_tasks, columns=columns
             )
             st.session_state.llm_result = result
-            result_table = st.dataframe(result)
+        if st.session_state.llm_analyzed:
+            if not st.session_state.llm_result.empty:
+                result_table = st.dataframe(result)
 
 
 async def page():
