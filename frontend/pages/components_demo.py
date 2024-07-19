@@ -64,7 +64,7 @@ def click_llm_analyze_btn():
 async def fetch_module():
     with st.container():
         st.markdown("# Fetch Module")
-        url_input = st.text_input("Input Url", key="url_input")
+        url_input = st.text_area("Input Url", key="url_input", height=10)
         fetch_method = st.selectbox(
             "How should your website be fetched",
             ("Static fetch", "Dynamic fetch"),
@@ -243,7 +243,7 @@ async def extract_module():
             if not st.session_state.extracted_result_dataframe.empty:
                 result_table = st.dataframe(
                     st.session_state.extracted_result_dataframe,
-                    height=200,
+                    height=600,
                     use_container_width=True,
                     hide_index=True,
                     on_select="ignore",
@@ -368,14 +368,13 @@ async def downstream_analysis():
                 data = st.session_state.extracted_result_dataframe
             else:
                 data = st.session_state.analysis_data
-
             result = await handle_llm_task(
                 data, llm_tasks=st.session_state.llm_tasks, columns=columns
             )
             st.session_state.llm_result = result
         if st.session_state.llm_analyzed:
             if not st.session_state.llm_result.empty:
-                result_table = st.dataframe(result)
+                result_table = st.dataframe(st.session_state.llm_result)
 
 
 async def page():
