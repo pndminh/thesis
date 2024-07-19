@@ -193,7 +193,6 @@ def generate_cloud_handler(
 ):
     data = data.fillna("")
     dictionaries = data.to_dict("records")
-    print(dictionaries)
     selected_columns = columns.split(",")
     selected_columns = (
         [col.strip() for col in selected_columns] if columns != "" else []
@@ -236,4 +235,5 @@ async def handle_llm_task(data, llm_tasks, columns=None):
     responses = await llm_extract_task(dictionaries, llm_tasks, columns)
     result = combine_res(dictionaries, responses, llm_tasks)
     df = pd.DataFrame(result)
+    print(df)
     return df

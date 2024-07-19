@@ -134,9 +134,9 @@ class SinglePathElementExtractor(ExtractTask):
                     search_paths.append(search_path)
             links = []
             for path in search_paths:
+                logger.info(f"path to search {path}")
                 similar_tags = soup.select(path)
                 for tag in similar_tags:
-
                     if "href" in tag.attrs:
                         links.append(tag["href"])
             return links

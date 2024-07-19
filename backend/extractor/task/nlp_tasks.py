@@ -87,17 +87,8 @@ def prepare_word_cloud(
     regex_patterns=None,
     fixed_words=None,
 ):
-    logger.info("Identifying language")
-    test = "".join([value for value in data[0].values()])
-    lang_detect = detect(str.encode(test))
-    if lang_detect == "vi":
-        with open(
-            "backend/llm/vietnamese_stopwords.txt", "r", encoding="utf-8"
-        ) as file:
-            stopwords = set(file.read().splitlines())
-    else:
-        with open("backend/llm/english_stopwords.txt", "r") as file:
-            stopwords = set(file.read().splitlines())
+    with open("backend/llm/stopwords.txt", "r") as file:
+        stopwords = set(file.read().splitlines())
     if len(selected_columns) == 0:
         select_columns = list(data[0].keys())
     else:
