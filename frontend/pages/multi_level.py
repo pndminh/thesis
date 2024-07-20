@@ -153,7 +153,7 @@ def preview():
     # with st.expander("Flow setup preview", expanded=True):
     for lvl in range(0, st.session_state.curr_lvl + 1):
         expand = True if lvl == st.session_state.curr_lvl else False
-        expander = st.expander(f"### Level {lvl+1}", expanded=expand)
+        expander = st.expander(f"### Level {lvl+1} setup preview", expanded=expand)
         col1, col2 = st.columns(2)
         with expander:
             st.write("##### Fetch_setups", st.session_state.fetch_setups[lvl])
@@ -178,8 +178,8 @@ async def page():
     start_btn = col3.button(
         "Start", type="primary", use_container_width=True, on_click=click_start_btn
     )
-    st.write(f"Rerun count: {st.session_state.rerun_count}")
-    st.session_state.rerun_count += 1
+    # st.write(f"Rerun count: {st.session_state.rerun_count}")
+    # st.session_state.rerun_count += 1
     preview()
 
     if add_level_btn:
@@ -209,6 +209,7 @@ async def page():
         st.session_state.extracted_result_dataframe = extracted_result
     if st.session_state.pipeline_started:
         if not st.session_state.extracted_result_dataframe.empty:
+            st.markdown("#### Extracted Result")
             result_table = st.dataframe(
                 st.session_state.extracted_result_dataframe,
                 height=200,
