@@ -39,8 +39,7 @@ if "parsed_html" not in st.session_state:
     st.session_state.parsed_html = BeautifulSoup()
 if "parsed_paths" not in st.session_state:
     st.session_state.parsed_paths = ""
-if "llm_tasks" not in st.session_state:
-    st.session_state.llm_tasks = {}
+
 
 logger = get_logger()
 
@@ -170,7 +169,7 @@ def save_fetch_result():
 async def extract_module():
     with st.container():
         st.title("Extract Module")
-        col1, col2 = st.columns([0.5, 0.5])
+        col1, body_col2 = st.columns([0.5, 0.5])
         expander = col1.expander("Example contents", expanded=True)
         label = expander.text_input("Label", key="label")
         example_content = expander.text_area(
@@ -189,18 +188,6 @@ async def extract_module():
         batch = col1.checkbox(
             "Extract from all fetched HTMLs", value=False, key="batch"
         )
-        if not st.session_state.contents_to_extract:
-            code = """extract_item = 
-        {"label": ("example_content", ["identifier"])}
-                """
-        else:
-            code = f"extract_item = {json.dumps(st.session_state.contents_to_extract, indent=2, ensure_ascii=False)}"
-
-        extract_content_preview = col2.code(
-            code,
-            language="python",
-        )
-
         col1, col2 = st.columns(2)
         reset_btn = col1.button(
             "Clear extract settings",
@@ -219,11 +206,12 @@ async def extract_module():
                 extract_identifier,
                 st.session_state.contents_to_extract,
             )
-            code = st.session_state.contents_to_extract
-            extract_content_preview.code(
-                f"extract_item = {json.dumps(st.session_state.contents_to_extract, indent=2, ensure_ascii=False)}",
-                language="python",
-            )
+        with body_col2:
+            st.write("###### Contents to extract preview")
+            if not st.session_state.contents_to_extract:
+                st.write({"example_label": ("example_content", ["identifier"])})
+            else:
+                st.write(st.session_state.contents_to_extract)
 
         extract_btn = col2.button(
             "Extract",
@@ -270,27 +258,30 @@ async def extract_module():
                 )
 
 
-async def downstream_analysis():
+async def downstream_analysis(allow_select_data=True):
     st.title("Downstream analysis module")
-    select_data = st.selectbox(
-        "Get data from",
-        options=["Use extracted data", "Upload data"],
-        key="select_data_for_analysis",
-    )
-    if st.session_state.get("select_data_for_analysis") == "Upload data":
-        expander = st.expander("Upload data", expanded=True)
-        uploaded_file = expander.file_uploader(
-            "Select data for analysis", label_visibility="collapsed"
+    if allow_select_data:
+        select_data = st.selectbox(
+            "Get data from",
+            options=["Use extracted data", "Upload data"],
+            key="select_data_for_analysis",
         )
-        if uploaded_file is not None:
-            st.session_state.analysis_data = pd.read_csv(uploaded_file)
-            analysis_table = expander.dataframe(
-                st.session_state.analysis_data,
-                height=200,
-                use_container_width=True,
-                hide_index=True,
-                on_select="ignore",
+        if st.session_state.get("select_data_for_analysis") == "Upload data":
+            expander = st.expander("Upload data", expanded=True)
+            uploaded_file = expander.file_uploader(
+                "Select data for analysis", label_visibility="collapsed"
             )
+            if uploaded_file is not None:
+                st.session_state.analysis_data = pd.read_csv(uploaded_file)
+                analysis_table = expander.dataframe(
+                    st.session_state.analysis_data,
+                    height=200,
+                    use_container_width=True,
+                    hide_index=True,
+                    on_select="ignore",
+                )
+    else:
+        select_data = "Use extracted data"
     with st.expander("### Word Cloud generator"):
         st.header("Word Cloud Generator")
         col1, col2 = st.columns(2, vertical_alignment="top")
@@ -330,17 +321,12 @@ async def downstream_analysis():
                 )
     with st.expander("### LLM analysis"):
         st.header("LLM analysis")
-        col1, col2 = st.columns(2)
+        col1, code_col2 = st.columns(2)
         classification_label = col1.text_input("Task name", key="classification_label")
         classification_text = col1.text_area(
             "Task description", key="classification_text", height=10
         )
         columns = col1.text_input("Columns", key="classification_select_columns")
-        if not st.session_state.llm_tasks:
-            code = """llm_tasks = {"task": "description"}"""
-        else:
-            code = f"""llm_tasks = {json.dumps(st.session_state.llm_tasks, indent=2, ensure_ascii=False)}"""
-        llm_tasks_preview = col2.code(code, "python")
         col1, col2, col3 = st.columns(3)
         reset_btn = col1.button(
             "Clear tasks",
@@ -353,10 +339,14 @@ async def downstream_analysis():
             st.session_state.llm_tasks = add_classification_task(
                 classification_label, classification_text, st.session_state.llm_tasks
             )
-            llm_tasks_preview.code(
-                f"llm_tasks = {json.dumps(st.session_state.llm_tasks, indent=2, ensure_ascii=False)}"
-            )
+
             print(st.session_state.llm_tasks)
+        with code_col2:
+            st.write("###### LLM tasks preview")
+            if not st.session_state.llm_tasks:
+                st.write({"example_task": "description"})
+            else:
+                st.write(st.session_state.llm_tasks)
         analyze_btn = col3.button(
             "Analyze",
             use_container_width=True,
@@ -383,7 +373,7 @@ async def page():
     init_downstream_analysis_state(st.session_state)
     await fetch_module()
     await extract_module()
-    await downstream_analysis()
+    await downstream_analysis(allow_select_data=True)
 
 
 asyncio.run(page())
