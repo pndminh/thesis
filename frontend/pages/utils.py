@@ -63,6 +63,8 @@ def init_downstream_analysis_state(state):
         state.llm_analyzed = False
     if "word_cloud_img" not in state:
         state.word_cloud_img = ""
+    if "llm_tasks" not in st.session_state:
+        st.session_state.llm_tasks = {}
 
 
 def clear_fetch_inputs(state):

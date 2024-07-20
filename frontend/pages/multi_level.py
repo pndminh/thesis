@@ -1,12 +1,14 @@
 import asyncio
+import json
 import time
 import pandas as pd
 import streamlit as st
 import sys
 
 sys.path.append("./")
+from frontend.pages.components_demo import downstream_analysis
 from frontend.utils import get_page_name
-from pages.utils import add_data
+from pages.utils import add_data, init_downstream_analysis_state
 from frontend.pages.multi_lvl_utils import (
     clear_extract_inputs,
     clear_fetch_inputs,
@@ -121,8 +123,7 @@ def extract_component(container, key):
                 options=["Direct Path Extract", "Container Extract", "Extract Links"],
                 key=f"m_extract_method",
             )
-            col1, col2 = st.columns([0.4, 0.6], vertical_alignment="bottom")
-            batch_checkbox = col2.checkbox("Extract from all HTMLs", key="m_batch")
+            batch_checkbox = st.checkbox("Extract from all HTMLs", key="m_batch")
             st.session_state.curr_extract_inputs = {
                 "extract_method": extract_method,
                 "batch": batch_checkbox,
@@ -164,6 +165,7 @@ def preview():
 async def page():
     init_fetch_state(st.session_state)
     level = st.container()
+    st.title("Setup multi-level extraction flow")
     st.markdown(f"### Level {st.session_state.curr_lvl+1}")
     container = st.container(border=True)
     fetch_component(container, st.session_state.curr_lvl)
@@ -202,12 +204,13 @@ async def page():
         st.session_state.extract_setups = [{}]
         st.rerun()
     if start_btn:
+        st.session_state.extracted_result_dataframe = {}
         extracted_result = await start_pipeline(st.session_state)
-        st.session_state.extracted_result = extracted_result
+        st.session_state.extracted_result_dataframe = extracted_result
     if st.session_state.pipeline_started:
-        if not st.session_state.extracted_result.empty:
+        if not st.session_state.extracted_result_dataframe.empty:
             result_table = st.dataframe(
-                st.session_state.extracted_result,
+                st.session_state.extracted_result_dataframe,
                 height=200,
                 use_container_width=True,
                 hide_index=True,
@@ -217,18 +220,20 @@ async def page():
             page_name = get_page_name(st.session_state.fetch_setups[0]["urls"])
             get_csv_btn = col1.download_button(
                 "Save as CSV",
-                st.session_state.extracted_result.to_csv().encode("utf-8"),
+                st.session_state.extracted_result_dataframe.to_csv().encode("utf-8"),
                 f"{page_name}.csv",
                 mime="text/csv",
                 use_container_width=True,
             )
             get_json_btn = col2.download_button(
                 "Save as JSON",
-                st.session_state.extracted_result.to_json().encode("utf-8"),
+                st.session_state.extracted_result_dataframe.to_json().encode("utf-8"),
                 f"{page_name}.json",
                 mime="application/json",
                 use_container_width=True,
             )
+            init_downstream_analysis_state(st.session_state)
+            await downstream_analysis(allow_select_data=False)
 
 
 asyncio.run(page())
