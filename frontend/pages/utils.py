@@ -30,15 +30,12 @@ def init_fetch_state(state):
         state.expand_button_click = False
     if "expand_button_text" not in state:
         state.expand_button_text = ""
-    if "pagination" not in state:
-        state.pagination = False
     if "max_pages" not in state:
         state.max_pages = 0
     if "dynamic_fetch_options" not in state:
         state.dynamic_fetch_options = {
             "infinite_scroll": 0,
             "expand_button_click": "",
-            "pagination": 0,
         }
     if "fetched" not in st.session_state:
         st.session_state.fetched = False
@@ -105,8 +102,6 @@ async def fetch(url, fetch_method, dynamic_fetch_options):
     expand_button_click = (
         False if dynamic_fetch_options["expand_button_click"] == "" else True
     )
-    pagination = False if dynamic_fetch_options["pagination"] == 0 else True
-
     expand_texts = dynamic_fetch_options["expand_button_click"].split(", ")
     expand_texts = [expand_text.strip() for expand_text in expand_texts]
     url_list = url.split(",")

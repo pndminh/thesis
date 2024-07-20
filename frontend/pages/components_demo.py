@@ -76,7 +76,6 @@ async def fetch_module():
                 [0.4, 0.6], vertical_alignment="top"
             )
             infinite_scroll = col1.checkbox("Infinite Scroll", key="infinite_scroll")
-            # pagination = col1.checkbox("Pagination", key="pagination")
             expand_button_click = col1.checkbox(
                 "Click expand buttons", key="expand_button"
             )
@@ -172,19 +171,23 @@ async def extract_module():
     with st.container():
         st.title("Extract Module")
         col1, col2 = st.columns([0.5, 0.5])
+        expander = col1.expander("Example contents", expanded=True)
+        label = expander.text_input("Label", key="label")
+        example_content = expander.text_area(
+            "Example content", key="example_content", height=10
+        )
+        extract_identifier = expander.multiselect(
+            "Select extract identifier",
+            ["Select by class", "Select by ID"],
+            key="extract_identifier",
+        )
         extract_method = col1.selectbox(
             "Select extract method",
             options=("Direct Path Extract", "Container Extract"),
             key="extract_method",
         )
-        label = col1.text_input("Label", key="label")
-        example_content = col1.text_area(
-            "Example content", key="example_content", height=10
-        )
-        extract_identifier = col1.multiselect(
-            "Select extract identifier",
-            ["Select by class", "Select by ID"],
-            key="extract_identifier",
+        batch = col1.checkbox(
+            "Extract from all fetched HTMLs", value=False, key="batch"
         )
         if not st.session_state.contents_to_extract:
             code = """extract_item = 
@@ -197,10 +200,8 @@ async def extract_module():
             code,
             language="python",
         )
-        batch = col2.checkbox(
-            "Extract from all fetched HTMLs", value=False, key="batch"
-        )
-        col1, col2, col3 = st.columns(3)
+
+        col1, col2 = st.columns(2)
         reset_btn = col1.button(
             "Clear extract settings",
             use_container_width=True,
@@ -208,9 +209,8 @@ async def extract_module():
             args=[st.session_state],
         )
 
-        add_content_btn = col2.button(
+        add_content_btn = expander.button(
             "Add contents to extract",
-            use_container_width=True,
         )
         if add_content_btn:
             st.session_state.contents_to_extract = add_data(
@@ -225,7 +225,7 @@ async def extract_module():
                 language="python",
             )
 
-        extract_btn = col3.button(
+        extract_btn = col2.button(
             "Extract",
             use_container_width=True,
             type="primary",
