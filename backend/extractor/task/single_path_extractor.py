@@ -119,13 +119,7 @@ class SinglePathElementExtractor(ExtractTask):
         res = await filter_non_empty_dicts(found_contents)
         return res
 
-    async def extract_links(self, soup=None):
-        if soup is None:
-            soup = self.soup
-        logger.info("STEP 1: PREPARING EXTRACT ITEMS WITH EXTRACT PATHS")
-        await self.prepare_single_website_extract_template()
-        logger.info("STEP 2: EXTRACTING LINKS")
-
+    async def extract_links_task(self, soup=None):
         async def extract_link_from_single_tag(label):
             search_paths = []
             for extract_item in label:
@@ -146,3 +140,17 @@ class SinglePathElementExtractor(ExtractTask):
             tasks.append(extract_link_from_single_tag(label))
         results = await asyncio.gather(*tasks)
         return dict(zip(self.example_template.keys(), results))
+
+    async def extract_links_from_single_website(self, html):
+        soup = prepare_html(html)
+        return await self.extract_links_task(soup)
+
+    async def extract_links_from_multiple_sites(self, html_list):
+        logger.info("STEP 1: PREPARING EXTRACT ITEMS WITH EXTRACT PATHS")
+        await self.prepare_single_website_extract_template()
+        logger.info("STEP 2: EXTRACTING LINKS")
+        found_links_dicts = await asyncio.gather(
+            *[self.extract_links_from_single_website(html) for html in html_list]
+        )
+        # logger.info(f"found list of links dictionaries {found_links_dicts}")
+        return found_links_dicts
