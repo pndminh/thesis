@@ -1,7 +1,8 @@
 import streamlit as st
 import sys
 
-from frontend.pages.utils import add_data
+
+from pages.utils import add_data
 from pages.multi_lvl_utils import (
     clear_extract_inputs,
     clear_fetch_inputs,
@@ -12,14 +13,7 @@ from pages.multi_lvl_utils import (
 if "curr_lvl" not in st.session_state:
     st.session_state.curr_lvl = 0
 if "fetch_setups" not in st.session_state:
-    st.session_state.fetch_setups = [
-        {
-            "urls": "www.example.com",
-            "fetch_method": "Static fetch",
-            "infinite_scroll": 0,
-            "expand_button_click": 0,
-        }
-    ]
+    st.session_state.fetch_setups = [{}]
 if "extract_setups" not in st.session_state:
     st.session_state.extract_setups = [{}]
 if "curr_fetch_inputs" not in st.session_state:
@@ -32,10 +26,18 @@ if "curr_contents_to_extract" not in st.session_state:
     st.session_state.curr_contents_to_extract = {}
 
 
-def fetch_component(column, key):
-    with column:
+def fetch_component(container, key):
+    with container:
         st.markdown("#### Fetch")
-        url = st.text_input("URL", key=f"url")
+        if key > 0:
+            url_disable = True
+            url_help = (
+                "URL field will be populated by previous level's extraction result"
+            )
+        else:
+            url_disable = False
+            url_help = ""
+        url = st.text_input("URL", key=f"url", disabled=url_disable, help=url_help)
         fetch_method = st.selectbox(
             "How should your website be fetched",
             ("Static fetch", "Dynamic fetch"),
@@ -47,7 +49,7 @@ def fetch_component(column, key):
                 label="Scroll timeout",
                 min_value=0,
                 max_value=180,
-                value=10,
+                value=0,
                 key=f"m_scroll_timeout",
             )
             expand_text = col2.text_input(
@@ -55,7 +57,7 @@ def fetch_component(column, key):
             )
         col1, col2 = st.columns(2)
         clear_fetch_btn = col1.button(
-            "Clear",
+            "Clear fetch setting",
             key=f"clear_fetch_btn",
             use_container_width=True,
             on_click=clear_fetch_inputs,
@@ -82,34 +84,48 @@ def fetch_component(column, key):
             st.session_state.curr_fetch_inputs = {}
 
 
-def extract_component(column, key):
-    with column:
+def extract_component(container, key):
+    with container:
+        # with st.container():
         st.markdown("#### Extract")
-
-        extract_method = st.selectbox(
-            "Select extract method",
-            options=["Direct Path Extract", "Container Extract"],
-            key=f"m_extract_method",
-        )
-        col1, col2 = st.columns([0.4, 0.6], vertical_alignment="bottom")
-        get_link_checkbox = col1.checkbox("Get links", key="m_get_links")
-        batch_checkbox = col2.checkbox("Extract from all HTMLs", key="m_batch")
-        with st.expander("Example contents"):
-            label_input = st.text_input("Label", key="m_label_input")
-            example_content = st.text_input("Example content", key="m_example_content")
-            extract_identifier = st.multiselect(
-                "Select extract identifier",
-                ["Select by class", "Select by ID"],
-                key="m_extract_identifier",
-            )
-            add_content_btn = st.button("Add content", key="m_add_content_btn")
-            if add_content_btn:
-                st.session_state.curr_contents_to_extract = add_data(
-                    label_input,
-                    example_content,
-                    extract_identifier,
-                    st.session_state.curr_contents_to_extract,
+        col1, body_col2 = st.columns(2)
+        with col1:
+            with st.expander("Example contents", expanded=True):
+                label_input = st.text_input("Label", key="m_label_input")
+                example_content = st.text_input(
+                    "Example content", key="m_example_content"
                 )
+                extract_identifier = st.multiselect(
+                    "Select extract identifier",
+                    ["Select by class", "Select by ID"],
+                    key="m_extract_identifier",
+                )
+                add_content_btn = st.button("Add content", key="m_add_content_btn")
+                if add_content_btn:
+                    st.session_state.curr_contents_to_extract = add_data(
+                        label_input,
+                        example_content,
+                        extract_identifier,
+                        st.session_state.curr_contents_to_extract,
+                    )
+                with body_col2:
+                    st.write("###### Contents to extract preview")
+                    st.write(st.session_state.curr_contents_to_extract)
+            extract_method = st.selectbox(
+                "Select extract method",
+                options=["Direct Path Extract", "Container Extract"],
+                key=f"m_extract_method",
+            )
+            col1, col2 = st.columns([0.4, 0.6], vertical_alignment="bottom")
+            get_link_checkbox = col1.checkbox("Get links", key="m_get_links")
+            batch_checkbox = col2.checkbox("Extract from all HTMLs", key="m_batch")
+            st.session_state.curr_extract_inputs = {
+                "extract_method": extract_method,
+                "get_link": get_link_checkbox,
+                "batch": batch_checkbox,
+                "contents_to_extract": st.session_state.curr_contents_to_extract,
+            }
+
         col1, col2 = st.columns(2)
         clear_extract_btn = col1.button(
             "Clear",
@@ -124,21 +140,18 @@ def extract_component(column, key):
             type="primary",
             key="extract_btn",
         )
-        st.session_state.curr_extract_inputs = {
-            "extract_method": extract_method,
-            "get_link": get_link_checkbox,
-            "batch": batch_checkbox,
-            "contents_to_extract": st.session_state.curr_contents_to_extract,
-        }
         if setup_extract_btn:
             st.session_state.extract_setups[key] = st.session_state.curr_extract_inputs
             st.session_state.curr_extract_inputs = {}
 
 
 def preview():
-    with st.expander("Flow setup preview", expanded=True):
-        for lvl in range(0, st.session_state.curr_lvl + 1):
-            st.markdown(f"### Level {lvl+1}")
+    # with st.expander("Flow setup preview", expanded=True):
+    for lvl in range(0, st.session_state.curr_lvl + 1):
+        expand = True if lvl == st.session_state.curr_lvl else False
+        expander = st.expander(f"### Level {lvl+1}", expanded=expand)
+        col1, col2 = st.columns(2)
+        with expander:
             st.write("##### Fetch_setups", st.session_state.fetch_setups[lvl])
             st.write("##### Extract_setups", st.session_state.extract_setups[lvl])
 
@@ -148,13 +161,12 @@ def preview():
 init_fetch_state(st.session_state)
 level = st.container()
 st.markdown(f"### Level {st.session_state.curr_lvl+1}")
-if st.session_state.curr_lvl == 0:
-    col1, col2 = st.columns(2)
-    # container = st.container(border=True)
-    fetch_component(col1, st.session_state.curr_lvl)
-    extract_component(col2, st.session_state.curr_lvl)
-else:
-    extract_component(level, st.session_state.curr_lvl)
+
+# col1, col2 = st.columns(2)
+container = st.container(border=True)
+fetch_component(container, st.session_state.curr_lvl)
+extract_component(container, st.session_state.curr_lvl)
+
 # Button to add new level
 col1, col2, col3 = st.columns(3)
 clear_level_btn = col1.button("Reset", use_container_width=True)
@@ -165,7 +177,19 @@ st.session_state.rerun_count += 1
 preview()
 
 if add_level_btn:
+    if not st.session_state.fetch_setups[st.session_state.curr_lvl]:
+        st.session_state.fetch_setups[st.session_state.curr_lvl] = {
+            "urls": "",
+            "fetch_method": "Dynamic fetch",
+            "infinite_scroll": 0,
+            "expand_button_click": "",
+        }
     st.session_state.curr_lvl += 1
+    st.session_state.curr_fetch_inputs = {}
+    st.session_state.curr_extract_inputs = {}
+    st.session_state.fetch_setups.append({})
+    st.session_state.extract_setups.append({})
+
     st.rerun()
 if clear_level_btn:
     st.session_state.curr_lvl = 0

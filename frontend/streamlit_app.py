@@ -9,6 +9,6 @@ full_flow_page = st.Page(
 )
 
 navigation = st.navigation([home_page, component_page, full_flow_page])
-st.set_page_config(page_title="Home page", page_icon="👋")
+st.set_page_config(page_title="Home page", layout="centered", page_icon="👋")
 
 navigation.run()
