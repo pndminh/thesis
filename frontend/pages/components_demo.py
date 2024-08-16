@@ -63,7 +63,7 @@ def click_llm_analyze_btn():
 async def fetch_module():
     with st.container():
         st.markdown("# Fetch Module")
-        url_input = st.text_area("Input Url", key="url_input", height=10)
+        url_input = st.text_input("Input Url", key="url_input")
         fetch_method = st.selectbox(
             "How should your website be fetched",
             ("Static fetch", "Dynamic fetch"),

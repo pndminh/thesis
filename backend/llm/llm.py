@@ -26,7 +26,7 @@ class LLM:
     def __init__(
         self,
         top_p=0.1,
-        top_k=40,
+        top_k=10,
         temperature=0.1,
         system_instruction=None,
         **args,
