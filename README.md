@@ -29,8 +29,8 @@ This project is a No-Code Web Crawler and Data Extraction System designed to hel
 
 1. **Clone the Repository**
    ```bash
-   git clone https://github.com/your-username/no-code-web-crawler.git
-   cd no-code-web-crawler
+   git clone https://github.com/pndminh/thesis.git
+   cd thesis
    ```
 2. **Create a Virtual Environment (Optional but recommended)**
    ```conda create -n no_code_crawler python=3.11
