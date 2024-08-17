@@ -8,7 +8,7 @@ This project is a No-Code Web Crawler and Data Extraction System designed to hel
 - [Installation](#installation)
 - [Usage](#usage)
 - [Limitations](#limitations)
-- [Contributing](#contributing)
+- [Contributions](#contributions)
 
 ## Features
 
@@ -28,24 +28,26 @@ This project is a No-Code Web Crawler and Data Extraction System designed to hel
 ### Step-by-Step Installation
 
 1. **Clone the Repository**
-   ```bash
+   ```
+   bash
    git clone https://github.com/pndminh/thesis.git
    cd thesis
    ```
 2. **Create a Virtual Environment (Optional but recommended)**
-   ```conda create -n no_code_crawler python=3.11
+   ```
+   conda create -n no_code_crawler python=3.11
    conda activate no_code_crawler
    ```
 3. **Install requirement packages**
 
-   ```pip install -r requirements.txt
-
+   ```
+   pip install -r requirements.txt
    ```
 
 4. **Run the application**
 
-   ```streamlit run frontend/streamlit_app.py
-
+   ```
+   streamlit run frontend/streamlit_app.py
    ```
 
 ## Usage
